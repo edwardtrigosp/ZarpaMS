@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MessageSquare, Upload, Send, CheckCircle2, Info, Zap } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Papa from "papaparse"
 import { toast } from "sonner"
 
@@ -28,6 +29,7 @@ interface Contact {
 }
 
 export default function MessagesPage() {
+  const router = useRouter()
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -171,8 +173,14 @@ export default function MessagesPage() {
       if (res.ok) {
         const data = await res.json()
         toast.success("✅ Mensaje de prueba enviado", {
-          description: `Mensaje enviado a ${testPhone}. Revisa el historial y el webhook.`,
-          duration: 5000
+          description: `Mensaje enviado a ${testPhone}. Haz clic abajo para ver el webhook.`,
+          duration: 8000,
+          action: {
+            label: "Ver Webhook",
+            onClick: () => {
+              router.push("/?tab=webhook")
+            }
+          }
         })
         
         // Limpiar formulario de prueba
