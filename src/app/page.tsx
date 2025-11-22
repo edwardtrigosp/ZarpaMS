@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText } from "lucide-react"
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, Webhook, Copy, Check, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface WhatsAppConfig {
   phoneNumberId: string
@@ -32,14 +33,23 @@ interface Stats {
   utilizationPeak: number
 }
 
+interface WebhookInfo {
+  webhookUrl: string
+  webhookPath: string
+  instructions: string[]
+}
+
 export default function HomePage() {
   const [config, setConfig] = useState<WhatsAppConfig | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [copiedToken, setCopiedToken] = useState(false)
 
   const [formData, setFormData] = useState({
     phoneNumberId: "",
@@ -53,6 +63,7 @@ export default function HomePage() {
   useEffect(() => {
     fetchConfig()
     fetchStats()
+    fetchWebhookInfo()
   }, [])
 
   const fetchConfig = async () => {
@@ -89,6 +100,18 @@ export default function HomePage() {
     }
   }
 
+  const fetchWebhookInfo = async () => {
+    try {
+      const res = await fetch("/api/whatsapp/webhook-url")
+      if (res.ok) {
+        const data = await res.json()
+        setWebhookInfo(data)
+      }
+    } catch (err) {
+      console.error("Error fetching webhook info:", err)
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     setError("")
@@ -105,12 +128,15 @@ export default function HomePage() {
         const data = await res.json()
         setConfig(data)
         setSuccess("Configuración guardada exitosamente")
+        toast.success("Configuración guardada exitosamente")
       } else {
         const data = await res.json()
         setError(data.error || "Error al guardar la configuración")
+        toast.error(data.error || "Error al guardar la configuración")
       }
     } catch (err) {
       setError("Error de conexión")
+      toast.error("Error de conexión")
     } finally {
       setSaving(false)
     }
@@ -134,15 +160,34 @@ export default function HomePage() {
 
       if (res.ok) {
         setSuccess("Conexión verificada exitosamente")
+        toast.success("Conexión verificada exitosamente")
         fetchConfig()
       } else {
         const data = await res.json()
         setError(data.error || "Error al verificar la conexión")
+        toast.error(data.error || "Error al verificar la conexión")
       }
     } catch (err) {
       setError("Error de conexión")
+      toast.error("Error de conexión")
     } finally {
       setVerifying(false)
+    }
+  }
+
+  const copyToClipboard = async (text: string, type: 'url' | 'token') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'url') {
+        setCopiedUrl(true)
+        setTimeout(() => setCopiedUrl(false), 2000)
+      } else {
+        setCopiedToken(true)
+        setTimeout(() => setCopiedToken(false), 2000)
+      }
+      toast.success("Copiado al portapapeles")
+    } catch (err) {
+      toast.error("Error al copiar")
     }
   }
 
@@ -261,6 +306,7 @@ export default function HomePage() {
         <Tabs defaultValue="config" className="space-y-4">
           <TabsList>
             <TabsTrigger value="config">Configuración</TabsTrigger>
+            <TabsTrigger value="webhook">Webhook</TabsTrigger>
             <TabsTrigger value="quick-actions">Acciones Rápidas</TabsTrigger>
           </TabsList>
 
@@ -367,6 +413,126 @@ export default function HomePage() {
                   <Button onClick={handleVerify} variant="outline" disabled={verifying}>
                     {verifying ? "Verificando..." : "Verificar Conexión"}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="webhook" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Webhook className="h-5 w-5" />
+                  <CardTitle>Configuración del Webhook</CardTitle>
+                </div>
+                <CardDescription>
+                  Configura el webhook en Meta Developer Console para recibir actualizaciones de estado de mensajes
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Webhook URL */}
+                <div className="space-y-2">
+                  <Label>URL del Webhook</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={webhookInfo?.webhookUrl || "Cargando..."}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => copyToClipboard(webhookInfo?.webhookUrl || "", 'url')}
+                    >
+                      {copiedUrl ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Esta URL debe configurarse en Meta Developer Console
+                  </p>
+                </div>
+
+                {/* Verify Token */}
+                <div className="space-y-2">
+                  <Label>Verify Token Actual</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={config?.webhookVerifyToken || "No configurado"}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => copyToClipboard(config?.webhookVerifyToken || "", 'token')}
+                      disabled={!config?.webhookVerifyToken}
+                    >
+                      {copiedToken ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Este token debe coincidir con el configurado en Meta
+                  </p>
+                </div>
+
+                {/* Instructions */}
+                <div className="space-y-2">
+                  <Label>Instrucciones de Configuración</Label>
+                  <Alert>
+                    <AlertDescription>
+                      <ol className="list-decimal list-inside space-y-2 text-sm">
+                        {webhookInfo?.instructions.map((instruction, index) => (
+                          <li key={index}>{instruction}</li>
+                        ))}
+                      </ol>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                {/* Link to Meta Console */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open('https://developers.facebook.com/apps', '_blank')}
+                    className="w-full"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Abrir Meta Developer Console
+                  </Button>
+                </div>
+
+                {/* Webhook Features */}
+                <div className="space-y-2">
+                  <Label>Funcionalidades del Webhook</Label>
+                  <div className="grid gap-2">
+                    <div className="flex items-start gap-2 p-3 border rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">Actualizaciones de Estado</p>
+                        <p className="text-xs text-muted-foreground">
+                          Recibe notificaciones cuando los mensajes son enviados, entregados o leídos
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 p-3 border rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">Manejo de Errores</p>
+                        <p className="text-xs text-muted-foreground">
+                          Actualiza automáticamente el estado de mensajes fallidos con detalles del error
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 p-3 border rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">Respuestas de Usuarios</p>
+                        <p className="text-xs text-muted-foreground">
+                          Registra cuando los usuarios responden a tus mensajes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
