@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, Webhook, Copy, Check, ExternalLink } from "lucide-react"
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -39,11 +39,25 @@ interface WebhookInfo {
   instructions: string[]
 }
 
+interface WebhookEvent {
+  id: number
+  eventType: string
+  rawPayload: any
+  messageId: string | null
+  phoneNumber: string | null
+  status: string | null
+  processed: boolean
+  errorMessage: string | null
+  createdAt: string
+}
+
 export default function HomePage() {
   const [config, setConfig] = useState<WhatsAppConfig | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null)
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingEvents, setLoadingEvents] = useState(false)
   const [saving, setSaving] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState("")
@@ -52,6 +66,7 @@ export default function HomePage() {
   const [copiedToken, setCopiedToken] = useState(false)
   const [showUrlDialog, setShowUrlDialog] = useState(false)
   const [showTokenDialog, setShowTokenDialog] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(true)
 
   const [formData, setFormData] = useState({
     phoneNumberId: "",
@@ -66,7 +81,19 @@ export default function HomePage() {
     fetchConfig()
     fetchStats()
     fetchWebhookInfo()
+    fetchWebhookEvents()
   }, [])
+
+  // Auto-refresh webhook events every 5 seconds
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      fetchWebhookEvents(true) // silent refresh
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [autoRefresh])
 
   const fetchConfig = async () => {
     try {
@@ -111,6 +138,42 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("Error fetching webhook info:", err)
+    }
+  }
+
+  const fetchWebhookEvents = async (silent = false) => {
+    if (!silent) setLoadingEvents(true)
+    try {
+      const res = await fetch("/api/whatsapp/webhook-logs?limit=20")
+      if (res.ok) {
+        const data = await res.json()
+        setWebhookEvents(data)
+      }
+    } catch (err) {
+      console.error("Error fetching webhook events:", err)
+    } finally {
+      if (!silent) setLoadingEvents(false)
+    }
+  }
+
+  const handleClearLogs = async () => {
+    if (!confirm("¿Estás seguro de que quieres limpiar todos los logs del webhook?")) {
+      return
+    }
+
+    try {
+      const res = await fetch("/api/whatsapp/webhook-logs", {
+        method: "DELETE"
+      })
+      
+      if (res.ok) {
+        toast.success("Logs del webhook limpiados exitosamente")
+        fetchWebhookEvents()
+      } else {
+        toast.error("Error al limpiar los logs")
+      }
+    } catch (err) {
+      toast.error("Error de conexión")
     }
   }
 
@@ -186,7 +249,6 @@ export default function HomePage() {
     let copySuccess = false
     
     try {
-      // Method 1: Modern Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text)
         copySuccess = true
@@ -197,7 +259,6 @@ export default function HomePage() {
 
     if (!copySuccess) {
       try {
-        // Method 2: execCommand with textarea
         const textArea = document.createElement("textarea")
         textArea.value = text
         textArea.style.position = "fixed"
@@ -223,7 +284,6 @@ export default function HomePage() {
 
     if (!copySuccess) {
       try {
-        // Method 3: Create selection range
         const input = document.getElementById(type === 'url' ? 'webhook-url-input' : 'verify-token-input') as HTMLInputElement
         if (input) {
           input.focus()
@@ -247,7 +307,6 @@ export default function HomePage() {
       }
       toast.success("✅ Copiado al portapapeles")
     } else {
-      // Show dialog as final fallback
       if (type === 'url') {
         setShowUrlDialog(true)
       } else {
@@ -271,6 +330,55 @@ export default function HomePage() {
     } catch (err) {
       console.error("Selection error:", err)
     }
+  }
+
+  const getEventIcon = (eventType: string) => {
+    switch (eventType) {
+      case 'verification':
+        return <CheckCircle className="h-4 w-4 text-blue-600" />
+      case 'message_status':
+        return <Activity className="h-4 w-4 text-green-600" />
+      case 'incoming_message':
+        return <MessageSquare className="h-4 w-4 text-purple-600" />
+      case 'incoming_webhook':
+        return <Webhook className="h-4 w-4 text-orange-600" />
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-600" />
+      default:
+        return <Activity className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const getEventBadgeVariant = (eventType: string, processed: boolean) => {
+    if (!processed) return "destructive"
+    
+    switch (eventType) {
+      case 'verification':
+        return "default"
+      case 'message_status':
+        return "default"
+      case 'incoming_message':
+        return "secondary"
+      default:
+        return "outline"
+    }
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    
+    if (diff < 60000) return "Hace un momento"
+    if (diff < 3600000) return `Hace ${Math.floor(diff / 60000)} min`
+    if (diff < 86400000) return `Hace ${Math.floor(diff / 3600000)} h`
+    
+    return date.toLocaleString('es-MX', { 
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   if (loading) {
@@ -319,7 +427,6 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -384,11 +491,11 @@ export default function HomePage() {
           </Card>
         </div>
 
-        {/* Configuration */}
         <Tabs defaultValue="config" className="space-y-4">
           <TabsList>
             <TabsTrigger value="config">Configuración</TabsTrigger>
             <TabsTrigger value="webhook">Webhook</TabsTrigger>
+            <TabsTrigger value="webhook-status">Estado del Webhook</TabsTrigger>
             <TabsTrigger value="quick-actions">Acciones Rápidas</TabsTrigger>
           </TabsList>
 
@@ -512,7 +619,6 @@ export default function HomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Webhook URL */}
                 <div className="space-y-2">
                   <Label>URL del Webhook</Label>
                   <div className="flex gap-2">
@@ -554,7 +660,6 @@ export default function HomePage() {
                   </Alert>
                 </div>
 
-                {/* Verify Token */}
                 <div className="space-y-2">
                   <Label>Verify Token Actual</Label>
                   <div className="flex gap-2">
@@ -594,7 +699,6 @@ export default function HomePage() {
                   </Alert>
                 </div>
 
-                {/* Instructions */}
                 <div className="space-y-2">
                   <Label>Instrucciones de Configuración</Label>
                   <Alert>
@@ -608,7 +712,6 @@ export default function HomePage() {
                   </Alert>
                 </div>
 
-                {/* Link to Meta Console */}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -620,7 +723,6 @@ export default function HomePage() {
                   </Button>
                 </div>
 
-                {/* Webhook Features */}
                 <div className="space-y-2">
                   <Label>Funcionalidades del Webhook</Label>
                   <div className="grid gap-2">
@@ -653,6 +755,194 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="webhook-status" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    <div>
+                      <CardTitle>Estado del Webhook en Tiempo Real</CardTitle>
+                      <CardDescription>
+                        Monitorea todos los eventos recibidos desde WhatsApp Business API
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className={`h-2 w-2 rounded-full ${autoRefresh ? 'bg-green-600 animate-pulse' : 'bg-gray-400'}`} />
+                      <span className="text-muted-foreground">
+                        {autoRefresh ? 'Auto-actualización activa' : 'Pausado'}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      {autoRefresh ? 'Pausar' : 'Reanudar'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => fetchWebhookEvents()}
+                      disabled={loadingEvents}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loadingEvents ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={handleClearLogs}
+                    >
+                      Limpiar Logs
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-4 mb-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Total Eventos</p>
+                          <p className="text-2xl font-bold">{webhookEvents.length}</p>
+                        </div>
+                        <Activity className="h-8 w-8 text-muted-foreground opacity-50" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Procesados</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {webhookEvents.filter(e => e.processed).length}
+                          </p>
+                        </div>
+                        <CheckCircle className="h-8 w-8 text-green-600 opacity-50" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Con Errores</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {webhookEvents.filter(e => !e.processed || e.errorMessage).length}
+                          </p>
+                        </div>
+                        <XCircle className="h-8 w-8 text-red-600 opacity-50" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Último Evento</p>
+                          <p className="text-sm font-bold">
+                            {webhookEvents.length > 0 ? formatTimestamp(webhookEvents[0].createdAt) : 'N/A'}
+                          </p>
+                        </div>
+                        <Clock className="h-8 w-8 text-muted-foreground opacity-50" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {loadingEvents && webhookEvents.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Cargando eventos...</p>
+                  </div>
+                ) : webhookEvents.length === 0 ? (
+                  <Alert>
+                    <AlertDescription className="text-center">
+                      <Webhook className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="font-medium">No se han recibido eventos del webhook aún</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Los eventos aparecerán aquí cuando Meta envíe actualizaciones a tu webhook
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-2">
+                    {webhookEvents.map((event) => (
+                      <Card key={event.id} className={`${!event.processed || event.errorMessage ? 'border-red-200 dark:border-red-900' : ''}`}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-4">
+                            <div className="mt-1">
+                              {getEventIcon(event.eventType)}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={getEventBadgeVariant(event.eventType, event.processed)}>
+                                    {event.eventType}
+                                  </Badge>
+                                  {event.status && (
+                                    <Badge variant="outline">{event.status}</Badge>
+                                  )}
+                                  {event.processed ? (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                      ✓ Procesado
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="destructive">
+                                      ✗ No procesado
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatTimestamp(event.createdAt)}
+                                </span>
+                              </div>
+                              
+                              {event.messageId && (
+                                <p className="text-sm">
+                                  <span className="font-medium">ID del Mensaje:</span>{' '}
+                                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{event.messageId}</code>
+                                </p>
+                              )}
+                              
+                              {event.phoneNumber && (
+                                <p className="text-sm">
+                                  <span className="font-medium">Teléfono:</span> {event.phoneNumber}
+                                </p>
+                              )}
+                              
+                              {event.errorMessage && (
+                                <Alert variant="destructive" className="py-2">
+                                  <AlertDescription className="text-xs">
+                                    <strong>Error:</strong> {event.errorMessage}
+                                  </AlertDescription>
+                                </Alert>
+                              )}
+                              
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                  Ver payload completo
+                                </summary>
+                                <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+                                  {JSON.stringify(event.rawPayload, null, 2)}
+                                </pre>
+                              </details>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -699,7 +989,6 @@ export default function HomePage() {
         </Tabs>
       </main>
 
-      {/* URL Dialog */}
       {showUrlDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUrlDialog(false)}>
           <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -745,7 +1034,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Token Dialog */}
       {showTokenDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTokenDialog(false)}>
           <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>

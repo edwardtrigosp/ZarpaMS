@@ -57,3 +57,15 @@ export const rateLimitTracking = sqliteTable('rate_limit_tracking', {
   peakCount: integer('peak_count').default(0),
   lastReset: text('last_reset').notNull(),
 });
+
+export const webhookEvents = sqliteTable('webhook_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventType: text('event_type').notNull(),
+  rawPayload: text('raw_payload', { mode: 'json' }).notNull(),
+  messageId: text('message_id'),
+  phoneNumber: text('phone_number'),
+  status: text('status'),
+  processed: integer('processed', { mode: 'boolean' }).default(false),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').notNull(),
+});
