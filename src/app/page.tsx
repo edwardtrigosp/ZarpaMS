@@ -50,6 +50,8 @@ export default function HomePage() {
   const [success, setSuccess] = useState("")
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedToken, setCopiedToken] = useState(false)
+  const [showUrlDialog, setShowUrlDialog] = useState(false)
+  const [showTokenDialog, setShowTokenDialog] = useState(false)
 
   const [formData, setFormData] = useState({
     phoneNumberId: "",
@@ -176,29 +178,66 @@ export default function HomePage() {
   }
 
   const copyToClipboard = async (text: string, type: 'url' | 'token') => {
+    if (!text || text === "Cargando..." || text === "No configurado") {
+      toast.error("No hay contenido para copiar")
+      return
+    }
+
+    let copySuccess = false
+    
     try {
-      // Try modern clipboard API first
+      // Method 1: Modern Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text)
-      } else {
-        // Fallback for iframe or non-secure contexts
+        copySuccess = true
+      }
+    } catch (err) {
+      console.log("Clipboard API failed, trying fallback methods")
+    }
+
+    if (!copySuccess) {
+      try {
+        // Method 2: execCommand with textarea
         const textArea = document.createElement("textarea")
         textArea.value = text
         textArea.style.position = "fixed"
         textArea.style.left = "-999999px"
         textArea.style.top = "-999999px"
+        textArea.style.opacity = "0"
         document.body.appendChild(textArea)
         textArea.focus()
         textArea.select()
         
-        const successful = document.execCommand('copy')
-        document.body.removeChild(textArea)
-        
-        if (!successful) {
-          throw new Error('Copy command failed')
+        try {
+          document.execCommand('copy')
+          copySuccess = true
+        } catch (err) {
+          console.log("execCommand failed")
         }
+        
+        document.body.removeChild(textArea)
+      } catch (err) {
+        console.log("Textarea method failed")
       }
-      
+    }
+
+    if (!copySuccess) {
+      try {
+        // Method 3: Create selection range
+        const input = document.getElementById(type === 'url' ? 'webhook-url-input' : 'verify-token-input') as HTMLInputElement
+        if (input) {
+          input.focus()
+          input.select()
+          input.setSelectionRange(0, text.length)
+          document.execCommand('copy')
+          copySuccess = true
+        }
+      } catch (err) {
+        console.log("Selection range method failed")
+      }
+    }
+    
+    if (copySuccess) {
       if (type === 'url') {
         setCopiedUrl(true)
         setTimeout(() => setCopiedUrl(false), 2000)
@@ -206,10 +245,31 @@ export default function HomePage() {
         setCopiedToken(true)
         setTimeout(() => setCopiedToken(false), 2000)
       }
-      toast.success("✓ Copiado al portapapeles")
+      toast.success("✅ Copiado al portapapeles")
+    } else {
+      // Show dialog as final fallback
+      if (type === 'url') {
+        setShowUrlDialog(true)
+      } else {
+        setShowTokenDialog(true)
+      }
+      toast.error("Usa el cuadro de diálogo para copiar manualmente")
+    }
+  }
+
+  const selectAllText = (inputId: string) => {
+    try {
+      const input = document.getElementById(inputId) as HTMLInputElement
+      if (input) {
+        input.focus()
+        input.select()
+        input.setSelectionRange(0, input.value.length)
+        toast.info("✏️ Texto seleccionado. Presiona Ctrl+C (o Cmd+C en Mac) para copiar", {
+          duration: 4000
+        })
+      }
     } catch (err) {
-      console.error("Copy error:", err)
-      toast.error("No se pudo copiar. Intenta seleccionar y copiar manualmente (Ctrl+C)")
+      console.error("Selection error:", err)
     }
   }
 
@@ -456,45 +516,82 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label>URL del Webhook</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={webhookInfo?.webhookUrl || "Cargando..."}
-                      readOnly
-                      className="font-mono text-sm"
-                    />
+                    <div className="flex-1 relative">
+                      <Input
+                        id="webhook-url-input"
+                        value={webhookInfo?.webhookUrl || "Cargando..."}
+                        readOnly
+                        className="font-mono text-sm cursor-pointer select-all pr-20"
+                        onClick={() => selectAllText('webhook-url-input')}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </div>
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() => copyToClipboard(webhookInfo?.webhookUrl || "", 'url')}
+                      title="Copiar URL"
                     >
-                      {copiedUrl ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowUrlDialog(true)}
+                      title="Ver en cuadro grande"
+                    >
+                      Ver
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Esta URL debe configurarse en Meta Developer Console
-                  </p>
+                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                    <AlertDescription className="text-xs">
+                      <strong>💡 Cómo copiar:</strong>
+                      <ol className="list-decimal ml-4 mt-1 space-y-1">
+                        <li>Haz clic en el botón <strong>"Copiar"</strong> (📋)</li>
+                        <li>Si no funciona, haz clic en <strong>"Ver"</strong> para abrir un cuadro grande</li>
+                        <li>O haz clic en el campo de texto y presiona <strong>Ctrl+A</strong> luego <strong>Ctrl+C</strong></li>
+                      </ol>
+                    </AlertDescription>
+                  </Alert>
                 </div>
 
                 {/* Verify Token */}
                 <div className="space-y-2">
                   <Label>Verify Token Actual</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={config?.webhookVerifyToken || "No configurado"}
-                      readOnly
-                      className="font-mono text-sm"
-                    />
+                    <div className="flex-1 relative">
+                      <Input
+                        id="verify-token-input"
+                        value={config?.webhookVerifyToken || "No configurado"}
+                        readOnly
+                        className="font-mono text-sm cursor-pointer select-all"
+                        onClick={() => selectAllText('verify-token-input')}
+                        onFocus={(e) => e.target.select()}
+                        disabled={!config?.webhookVerifyToken}
+                      />
+                    </div>
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() => copyToClipboard(config?.webhookVerifyToken || "", 'token')}
                       disabled={!config?.webhookVerifyToken}
+                      title="Copiar Token"
                     >
-                      {copiedToken ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedToken ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTokenDialog(true)}
+                      disabled={!config?.webhookVerifyToken}
+                      title="Ver en cuadro grande"
+                    >
+                      Ver
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Este token debe coincidir con el configurado en Meta
-                  </p>
+                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                    <AlertDescription className="text-xs">
+                      <strong>💡 Cómo copiar:</strong> Usa el botón "Copiar" o "Ver" para copiar el token fácilmente
+                    </AlertDescription>
+                  </Alert>
                 </div>
 
                 {/* Instructions */}
@@ -601,6 +698,98 @@ export default function HomePage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* URL Dialog */}
+      {showUrlDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUrlDialog(false)}>
+          <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">URL del Webhook</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowUrlDialog(false)}>
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Selecciona todo el texto y copia con <strong>Ctrl+C</strong> (Windows/Linux) o <strong>Cmd+C</strong> (Mac)
+            </p>
+            <textarea
+              readOnly
+              value={webhookInfo?.webhookUrl || ""}
+              className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
+              onClick={(e) => {
+                e.currentTarget.select()
+                toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar")
+              }}
+              onFocus={(e) => e.target.select()}
+            />
+            <div className="flex gap-2 mt-4">
+              <Button
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(webhookInfo?.webhookUrl || "")
+                    toast.success("✅ Copiado!")
+                    setShowUrlDialog(false)
+                  } catch (err) {
+                    toast.error("Selecciona el texto y presiona Ctrl+C")
+                  }
+                }}
+              >
+                Copiar al Portapapeles
+              </Button>
+              <Button variant="outline" onClick={() => setShowUrlDialog(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Token Dialog */}
+      {showTokenDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTokenDialog(false)}>
+          <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Verify Token</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowTokenDialog(false)}>
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Selecciona todo el texto y copia con <strong>Ctrl+C</strong> (Windows/Linux) o <strong>Cmd+C</strong> (Mac)
+            </p>
+            <textarea
+              readOnly
+              value={config?.webhookVerifyToken || ""}
+              className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
+              onClick={(e) => {
+                e.currentTarget.select()
+                toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar")
+              }}
+              onFocus={(e) => e.target.select()}
+            />
+            <div className="flex gap-2 mt-4">
+              <Button
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(config?.webhookVerifyToken || "")
+                    toast.success("✅ Copiado!")
+                    setShowTokenDialog(false)
+                  } catch (err) {
+                    toast.error("Selecciona el texto y presiona Ctrl+C")
+                  }
+                }}
+              >
+                Copiar al Portapapeles
+              </Button>
+              <Button variant="outline" onClick={() => setShowTokenDialog(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
