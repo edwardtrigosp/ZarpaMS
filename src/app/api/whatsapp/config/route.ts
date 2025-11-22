@@ -2,9 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { whatsappConfig } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { validateApiKey, sanitizeConfigForClient, addSecurityHeaders, rateLimit, logSecurityEvent } from '@/lib/security';
+
+// Rate limiter: 10 requests per minute
+const rateLimiter = rateLimit({ windowMs: 60000, maxRequests: 10 });
 
 export async function GET(request: NextRequest) {
   try {
+    // Check rate limit
+    const rateCheck = await rateLimiter(request);
+    if (!rateCheck.allowed) {
+      logSecurityEvent({
+        type: 'RATE_LIMIT_EXCEEDED',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/config',
+      });
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'X-RateLimit-Remaining': rateCheck.remaining.toString() } }
+      );
+    }
+
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/config',
+        details: authCheck.error,
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const config = await db.select()
       .from(whatsappConfig)
       .limit(1);
@@ -16,17 +49,49 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    return NextResponse.json(config[0], { status: 200 });
+    // ✅ SECURITY FIX: Remove sensitive data before sending to client
+    const sanitizedConfig = sanitizeConfigForClient(config[0]);
+
+    const response = NextResponse.json(sanitizedConfig, { status: 200 });
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+      error: 'Internal server error' 
     }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const rateCheck = await rateLimiter(request);
+    if (!rateCheck.allowed) {
+      logSecurityEvent({
+        type: 'RATE_LIMIT_EXCEEDED',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/config',
+      });
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/config',
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     
     const {
@@ -110,7 +175,9 @@ export async function POST(request: NextRequest) {
         .where(eq(whatsappConfig.id, existingConfig[0].id))
         .returning();
 
-      return NextResponse.json(updated[0], { status: 200 });
+      const sanitizedConfig = sanitizeConfigForClient(updated[0]);
+      const response = NextResponse.json(sanitizedConfig, { status: 200 });
+      return addSecurityHeaders(response);
     } else {
       // Create new config
       const newConfig = await db.insert(whatsappConfig)
@@ -127,12 +194,14 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
-      return NextResponse.json(newConfig[0], { status: 201 });
+      const sanitizedConfig = sanitizeConfigForClient(newConfig[0]);
+      const response = NextResponse.json(sanitizedConfig, { status: 201 });
+      return addSecurityHeaders(response);
     }
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+      error: 'Internal server error'
     }, { status: 500 });
   }
 }

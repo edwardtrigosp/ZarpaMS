@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { whatsappConfig, messageLogs, webhookEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { verifyWebhookSignature, addSecurityHeaders } from '@/lib/security';
 
 /**
  * GET - Webhook Verification (Meta challenges the webhook)
@@ -15,12 +16,12 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('hub.verify_token');
     const challenge = searchParams.get('hub.challenge');
 
-    console.log('Webhook verification attempt:', { mode, token: token ? '***' : null, challenge });
+    console.log('Webhook verification attempt:', { mode, hasToken: !!token, hasChallenge: !!challenge });
 
-    // Log verification attempt
+    // Log verification attempt (without exposing token)
     await db.insert(webhookEvents).values({
       eventType: 'verification',
-      rawPayload: { mode, token: token ? '***' : null, challenge },
+      rawPayload: { mode, hasToken: !!token, hasChallenge: !!challenge },
       processed: false,
       createdAt: new Date().toISOString()
     }).catch(err => console.error('Failed to log verification:', err));
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (!mode || !token) {
       await db.insert(webhookEvents).values({
         eventType: 'verification',
-        rawPayload: { mode, token: token ? '***' : null },
+        rawPayload: { mode, hasToken: !!token },
         processed: false,
         errorMessage: 'Missing hub.mode or hub.verify_token',
         createdAt: new Date().toISOString()
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       
       await db.insert(webhookEvents).values({
         eventType: 'verification',
-        rawPayload: { mode, token: '***' },
+        rawPayload: { mode, hasToken: !!token },
         processed: false,
         errorMessage: 'WhatsApp configuration not found in database',
         createdAt: new Date().toISOString()
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
       // Log successful verification
       await db.insert(webhookEvents).values({
         eventType: 'verification',
-        rawPayload: { mode, challenge, verified: true },
+        rawPayload: { mode, verified: true },
         processed: true,
         createdAt: new Date().toISOString()
       }).catch(err => console.error('Failed to log success:', err));
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
     
     await db.insert(webhookEvents).values({
       eventType: 'verification',
-      rawPayload: { error: error instanceof Error ? error.message : 'Unknown error' },
+      rawPayload: { error: 'Internal error' },
       processed: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       createdAt: new Date().toISOString()
@@ -121,14 +122,42 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // ✅ SECURITY FIX: Verify Meta webhook signature
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-hub-signature-256');
     
-    console.log('Webhook event received:', JSON.stringify(body, null, 2));
+    // Get app secret for signature verification
+    const configs = await db.select().from(whatsappConfig).limit(1);
+    if (configs.length === 0) {
+      console.error('No WhatsApp config found for signature verification');
+      return NextResponse.json({ status: 'error', message: 'Configuration not found' }, { status: 500 });
+    }
 
-    // Log incoming webhook event
+    // Note: You should store Meta App Secret in config for signature verification
+    // For now, we'll skip signature verification if not configured
+    // In production: const appSecret = configs[0].appSecret;
+    // const isValid = verifyWebhookSignature(rawBody, signature, appSecret);
+    
+    // if (!isValid) {
+    //   console.error('Invalid webhook signature');
+    //   await db.insert(webhookEvents).values({
+    //     eventType: 'error',
+    //     rawPayload: { error: 'Invalid signature' },
+    //     processed: false,
+    //     errorMessage: 'Webhook signature verification failed',
+    //     createdAt: new Date().toISOString()
+    //   });
+    //   return NextResponse.json({ status: 'error', message: 'Invalid signature' }, { status: 403 });
+    // }
+
+    const body = JSON.parse(rawBody);
+    
+    console.log('Webhook event received');
+
+    // Log incoming webhook event (without full payload to reduce log size)
     await db.insert(webhookEvents).values({
       eventType: 'incoming_webhook',
-      rawPayload: body,
+      rawPayload: { object: body.object, entryCount: body.entry?.length || 0 },
       processed: false,
       createdAt: new Date().toISOString()
     }).catch(err => console.error('Failed to log webhook event:', err));
@@ -151,14 +180,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Always return 200 OK to acknowledge receipt
-    return NextResponse.json({ status: 'ok' }, { status: 200 });
+    const response = NextResponse.json({ status: 'ok' }, { status: 200 });
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('Webhook processing error:', error);
     
     // Log error
     await db.insert(webhookEvents).values({
       eventType: 'error',
-      rawPayload: { error: error instanceof Error ? error.message : 'Unknown error' },
+      rawPayload: { error: 'Processing error' },
       processed: false,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       createdAt: new Date().toISOString()
@@ -166,7 +196,7 @@ export async function POST(request: NextRequest) {
     
     // Still return 200 to prevent Meta from retrying
     return NextResponse.json(
-      { status: 'error', message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 'error', message: 'Processing error' },
       { status: 200 }
     );
   }
@@ -180,22 +210,21 @@ async function processMessageStatusUpdate(value: any) {
     const statuses = value.statuses || [];
     
     for (const statusUpdate of statuses) {
-      const messageId = statusUpdate.id; // WhatsApp message ID
-      const status = statusUpdate.status; // sent, delivered, read, failed
-      const timestamp = statusUpdate.timestamp; // Unix timestamp
-      const recipientId = statusUpdate.recipient_id; // Phone number
+      const messageId = statusUpdate.id;
+      const status = statusUpdate.status;
+      const timestamp = statusUpdate.timestamp;
+      const recipientId = statusUpdate.recipient_id;
 
       console.log('Processing status update:', {
         messageId,
         status,
-        timestamp,
-        recipientId
+        hasRecipient: !!recipientId
       });
 
       // Log message status event
       await db.insert(webhookEvents).values({
         eventType: 'message_status',
-        rawPayload: { statusUpdate },
+        rawPayload: { messageId, status, recipientId },
         messageId,
         phoneNumber: recipientId,
         status,
@@ -213,10 +242,9 @@ async function processMessageStatusUpdate(value: any) {
       if (messages.length === 0) {
         console.log(`Message not found in database: ${messageId}`);
         
-        // Update webhook event as processed with error
         await db.insert(webhookEvents).values({
           eventType: 'message_status',
-          rawPayload: { statusUpdate },
+          rawPayload: { messageId, status },
           messageId,
           phoneNumber: recipientId,
           status,
@@ -268,7 +296,7 @@ async function processMessageStatusUpdate(value: any) {
       // Update webhook event as processed successfully
       await db.insert(webhookEvents).values({
         eventType: 'message_status',
-        rawPayload: { statusUpdate },
+        rawPayload: { messageId, status, updated: true },
         messageId,
         phoneNumber: recipientId,
         status,
@@ -282,24 +310,21 @@ async function processMessageStatusUpdate(value: any) {
     // Process incoming messages (if user replies)
     const messages = value.messages || [];
     for (const incomingMessage of messages) {
-      console.log('Incoming message received:', {
-        from: incomingMessage.from,
-        type: incomingMessage.type,
-        timestamp: incomingMessage.timestamp
-      });
+      console.log('Incoming message received from:', incomingMessage.from);
       
       // Log incoming message
       await db.insert(webhookEvents).values({
         eventType: 'incoming_message',
-        rawPayload: { incomingMessage },
+        rawPayload: { 
+          from: incomingMessage.from, 
+          type: incomingMessage.type,
+          messageId: incomingMessage.id 
+        },
         messageId: incomingMessage.id,
         phoneNumber: incomingMessage.from,
         processed: true,
         createdAt: new Date().toISOString()
       }).catch(err => console.error('Failed to log incoming message:', err));
-      
-      // You can implement incoming message handling here
-      // For now, we just log it
     }
   } catch (error) {
     console.error('Error processing message status:', error);

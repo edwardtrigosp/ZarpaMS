@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { messageLogs, messageTemplates, contacts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { validateApiKey, sanitizePhoneNumber, sanitizeString, addSecurityHeaders, rateLimit, logSecurityEvent } from '@/lib/security';
 
 interface ContactInput {
   phoneNumber: string;
@@ -15,8 +16,39 @@ interface BulkMessageRequest {
   scheduledAt?: string;
 }
 
+// Rate limiter: 5 bulk sends per minute
+const rateLimiter = rateLimit({ windowMs: 60000, maxRequests: 5 });
+
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const rateCheck = await rateLimiter(request);
+    if (!rateCheck.allowed) {
+      logSecurityEvent({
+        type: 'RATE_LIMIT_EXCEEDED',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/messages/bulk',
+      });
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/messages/bulk',
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const body: BulkMessageRequest = await request.json();
     const { templateId, contacts: contactsArray, scheduledAt } = body;
 
@@ -42,7 +74,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validation: each contact must have phoneNumber
+    // ✅ SECURITY FIX: Limit bulk send size to prevent abuse
+    if (contactsArray.length > 1000) {
+      logSecurityEvent({
+        type: 'SUSPICIOUS_ACTIVITY',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/messages/bulk',
+        details: `Attempted to send to ${contactsArray.length} contacts`,
+      });
+      return NextResponse.json(
+        { 
+          error: 'Maximum 1000 contacts per bulk send',
+          code: 'TOO_MANY_CONTACTS'
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ SECURITY FIX: Validate each phone number
     for (let i = 0; i < contactsArray.length; i++) {
       if (!contactsArray[i].phoneNumber) {
         return NextResponse.json(
@@ -53,6 +102,21 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Validate phone number format (E.164)
+      const phoneValidation = sanitizePhoneNumber(contactsArray[i].phoneNumber);
+      if (!phoneValidation.valid) {
+        return NextResponse.json(
+          { 
+            error: `Contact at index ${i}: ${phoneValidation.error}`,
+            code: 'INVALID_PHONE_NUMBER'
+          },
+          { status: 400 }
+        );
+      }
+
+      // Update with sanitized phone number
+      contactsArray[i].phoneNumber = phoneValidation.sanitized!;
     }
 
     // Fetch template
@@ -79,6 +143,9 @@ export async function POST(request: NextRequest) {
     for (const contactInput of contactsArray) {
       const { phoneNumber, name, variables } = contactInput;
 
+      // ✅ SECURITY FIX: Sanitize name input
+      const sanitizedName = name ? sanitizeString(name) : null;
+
       // Find or create contact
       let existingContact = await db.select()
         .from(contacts)
@@ -92,7 +159,7 @@ export async function POST(request: NextRequest) {
         const newContact = await db.insert(contacts)
           .values({
             phoneNumber,
-            name: name || null,
+            name: sanitizedName,
             metadata: null,
             createdAt: currentTime
           })
@@ -103,9 +170,9 @@ export async function POST(request: NextRequest) {
         contactId = existingContact[0].id;
         
         // Update contact name if provided and different
-        if (name && existingContact[0].name !== name) {
+        if (sanitizedName && existingContact[0].name !== sanitizedName) {
           await db.update(contacts)
-            .set({ name })
+            .set({ name: sanitizedName })
             .where(eq(contacts.id, contactId));
         }
       }
@@ -114,15 +181,16 @@ export async function POST(request: NextRequest) {
       let messageContent = templateData.content;
 
       // Replace name variable
-      if (name) {
-        messageContent = messageContent.replace(/\{\{name\}\}/g, name);
+      if (sanitizedName) {
+        messageContent = messageContent.replace(/\{\{name\}\}/g, sanitizedName);
       }
 
-      // Replace custom variables
+      // ✅ SECURITY FIX: Sanitize custom variables
       if (variables) {
         for (const [key, value] of Object.entries(variables)) {
+          const sanitizedValue = sanitizeString(value);
           const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-          messageContent = messageContent.replace(regex, value);
+          messageContent = messageContent.replace(regex, sanitizedValue);
         }
       }
 
@@ -150,7 +218,7 @@ export async function POST(request: NextRequest) {
       createdMessages.push(messageLog[0]);
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         messageCount: createdMessages.length,
@@ -159,11 +227,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
+    return addSecurityHeaders(response);
+
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json(
       { 
-        error: 'Internal server error: ' + (error as Error).message 
+        error: 'Internal server error'
       },
       { status: 500 }
     );

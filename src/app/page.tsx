@@ -12,9 +12,23 @@ import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText,
 import Link from "next/link"
 import { toast } from "sonner"
 
+// ✅ Get API key from localStorage
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('api_key') || '';
+  }
+  return '';
+};
+
+const setApiKey = (key: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('api_key', key);
+  }
+};
+
 interface WhatsAppConfig {
   phoneNumberId: string
-  accessToken: string
+  // accessToken is now hidden from client
   businessAccountId: string
   webhookVerifyToken: string
   isVerified: boolean

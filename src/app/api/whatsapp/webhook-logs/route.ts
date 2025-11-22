@@ -2,9 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { webhookEvents } from '@/db/schema';
 import { desc } from 'drizzle-orm';
+import { validateApiKey, addSecurityHeaders, rateLimit, logSecurityEvent } from '@/lib/security';
+
+// Rate limiter: 30 requests per minute
+const rateLimiter = rateLimit({ windowMs: 60000, maxRequests: 30 });
 
 export async function GET(request: NextRequest) {
   try {
+    // Check rate limit
+    const rateCheck = await rateLimiter(request);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/webhook-logs',
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get('limit');
     
@@ -31,12 +58,13 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(webhookEvents.createdAt))
       .limit(limit);
 
-    return NextResponse.json(events, { status: 200 });
+    const response = NextResponse.json(events, { status: 200 });
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('GET webhook events error:', error);
     return NextResponse.json(
       { 
-        error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
+        error: 'Internal server error'
       },
       { status: 500 }
     );
@@ -45,6 +73,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/webhook-logs',
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { eventType, rawPayload, messageId, phoneNumber, status, processed, errorMessage } = body;
 
@@ -87,12 +129,13 @@ export async function POST(request: NextRequest) {
       .values(webhookEventData)
       .returning();
 
-    return NextResponse.json(newWebhookEvent, { status: 201 });
+    const response = NextResponse.json(newWebhookEvent, { status: 201 });
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('POST webhook event error:', error);
     return NextResponse.json(
       { 
-        error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
+        error: 'Internal server error'
       },
       { status: 500 }
     );
@@ -101,6 +144,20 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Validate API key
+    const authCheck = validateApiKey(request);
+    if (!authCheck.valid) {
+      logSecurityEvent({
+        type: 'AUTH_FAILURE',
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        endpoint: '/api/whatsapp/webhook-logs',
+      });
+      return NextResponse.json(
+        { error: authCheck.error, code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     // Delete all webhook events and get the deleted records
     const deleted = await db
       .delete(webhookEvents)
@@ -108,7 +165,7 @@ export async function DELETE(request: NextRequest) {
 
     const deletedCount = deleted.length;
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: `Deleted ${deletedCount} webhook log${deletedCount !== 1 ? 's' : ''}`,
@@ -116,11 +173,13 @@ export async function DELETE(request: NextRequest) {
       },
       { status: 200 }
     );
+
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('DELETE webhook events error:', error);
     return NextResponse.json(
       { 
-        error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
+        error: 'Internal server error'
       },
       { status: 500 }
     );
