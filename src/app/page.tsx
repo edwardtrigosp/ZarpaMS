@@ -177,7 +177,28 @@ export default function HomePage() {
 
   const copyToClipboard = async (text: string, type: 'url' | 'token') => {
     try {
-      await navigator.clipboard.writeText(text)
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        // Fallback for iframe or non-secure contexts
+        const textArea = document.createElement("textarea")
+        textArea.value = text
+        textArea.style.position = "fixed"
+        textArea.style.left = "-999999px"
+        textArea.style.top = "-999999px"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        
+        if (!successful) {
+          throw new Error('Copy command failed')
+        }
+      }
+      
       if (type === 'url') {
         setCopiedUrl(true)
         setTimeout(() => setCopiedUrl(false), 2000)
@@ -185,9 +206,10 @@ export default function HomePage() {
         setCopiedToken(true)
         setTimeout(() => setCopiedToken(false), 2000)
       }
-      toast.success("Copiado al portapapeles")
+      toast.success("✓ Copiado al portapapeles")
     } catch (err) {
-      toast.error("Error al copiar")
+      console.error("Copy error:", err)
+      toast.error("No se pudo copiar. Intenta seleccionar y copiar manualmente (Ctrl+C)")
     }
   }
 
