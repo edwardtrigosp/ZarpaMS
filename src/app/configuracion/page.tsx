@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock, Edit2, Save } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CheckCircle, XCircle, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock, Edit2, Save, Zap, Send } from "lucide-react"
 import { toast } from "sonner"
 
 // ✅ Get API key from localStorage
@@ -55,6 +56,15 @@ interface WebhookEvent {
   createdAt: string
 }
 
+interface Template {
+  id: number
+  name: string
+  content: string
+  variables: string[]
+  category: string
+  status: string
+}
+
 export default function ConfiguracionPage() {
   const [config, setConfig] = useState<WhatsAppConfig | null>(null)
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null)
@@ -81,10 +91,18 @@ export default function ConfiguracionPage() {
     peakLimit: 10000,
   })
 
+  // Test message state
+  const [testTemplate, setTestTemplate] = useState<Template | null>(null)
+  const [testPhone, setTestPhone] = useState("")
+  const [testVariables, setTestVariables] = useState<Record<string, string>>({})
+  const [sendingTest, setSendingTest] = useState(false)
+  const [templates, setTemplates] = useState<Template[]>([])
+
   useEffect(() => {
     fetchConfig();
     fetchWebhookInfo();
     fetchWebhookEvents();
+    fetchTemplates();
   }, [])
 
   // Auto-refresh webhook events every 5 seconds
@@ -97,6 +115,28 @@ export default function ConfiguracionPage() {
 
     return () => clearInterval(interval)
   }, [autoRefresh])
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await fetch("/api/templates?status=APPROVED&limit=50", {
+        headers: getFetchHeaders()
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const parsedData = data.map((template: Template) => ({
+          ...template,
+          variables: typeof template.variables === 'string' 
+            ? JSON.parse(template.variables) 
+            : Array.isArray(template.variables) 
+              ? template.variables 
+              : []
+        }))
+        setTemplates(parsedData)
+      }
+    } catch (err) {
+      console.error("Error fetching templates:", err)
+    }
+  }
 
   const fetchConfig = async () => {
     try {
@@ -336,6 +376,78 @@ export default function ConfiguracionPage() {
     }
   }
 
+  const handleSendTestMessage = async () => {
+    if (!testTemplate) {
+      toast.error("Selecciona una plantilla para la prueba")
+      return
+    }
+
+    if (!testPhone) {
+      toast.error("Ingresa un número de teléfono")
+      return
+    }
+
+    if (!testPhone.startsWith("+")) {
+      toast.error("El número debe incluir código de país (+52...)")
+      return
+    }
+
+    const missingVars = testTemplate.variables.filter(v => !testVariables[v])
+    if (missingVars.length > 0) {
+      toast.error(`Completa las variables: ${missingVars.join(", ")}`)
+      return
+    }
+
+    setSendingTest(true)
+    
+    const loadingToast = toast.loading("Enviando mensaje de prueba...", {
+      description: `A: ${testPhone}`
+    })
+
+    try {
+      const payload = {
+        templateId: testTemplate.id,
+        contacts: [{
+          phoneNumber: testPhone,
+          variables: Object.keys(testVariables).length > 0 ? testVariables : undefined
+        }]
+      }
+
+      const res = await fetch("/api/messages/bulk", {
+        method: "POST",
+        headers: getFetchHeaders(),
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        toast.success("✅ Mensaje de prueba enviado", {
+          description: `Mensaje enviado a ${testPhone}. Revisa el tab "Estado del Webhook" abajo.`,
+          duration: 8000
+        })
+        
+        setTestPhone("")
+        setTestVariables({})
+        
+        // Refresh webhook events after sending
+        setTimeout(() => {
+          fetchWebhookEvents()
+        }, 2000)
+      } else {
+        const data = await res.json()
+        toast.error("Error al enviar mensaje de prueba", {
+          description: data.error || "Ocurrió un error inesperado"
+        })
+      }
+    } catch (err) {
+      toast.error("Error de conexión", {
+        description: "No se pudo conectar con el servidor"
+      })
+    } finally {
+      toast.dismiss(loadingToast)
+      setSendingTest(false)
+    }
+  }
+
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case 'verification':
@@ -405,6 +517,118 @@ export default function ConfiguracionPage() {
             Gestiona las credenciales de WhatsApp Business API y configuración del webhook
           </p>
         </div>
+
+        {/* Test Message Card */}
+        <Card className="mb-6 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-900 dark:text-yellow-400">
+              <Zap className="h-6 w-6" />
+              ⚡ Envío de Prueba Rápido
+            </CardTitle>
+            <CardDescription>
+              Envía un mensaje de prueba para verificar que la configuración funciona correctamente
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="test-template">Plantilla</Label>
+                <Select
+                  value={testTemplate?.id.toString()}
+                  onValueChange={(value) => {
+                    const template = templates.find((t) => t.id.toString() === value)
+                    setTestTemplate(template || null)
+                    if (template && template.variables) {
+                      const newVars: Record<string, string> = {}
+                      template.variables.forEach(v => newVars[v] = "")
+                      setTestVariables(newVars)
+                    }
+                  }}
+                >
+                  <SelectTrigger id="test-template">
+                    <SelectValue placeholder="Selecciona una plantilla" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.length > 0 ? (
+                      templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          {template.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No hay plantillas disponibles
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="test-phone">Número de Teléfono *</Label>
+                <Input
+                  id="test-phone"
+                  type="tel"
+                  placeholder="+5215551234567"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                />
+              </div>
+
+              {testTemplate && testTemplate.variables && testTemplate.variables.length > 0 && (
+                <>
+                  {testTemplate.variables.map((variable) => (
+                    <div key={variable} className="space-y-2">
+                      <Label htmlFor={`test-var-${variable}`}>
+                        Variable: {variable} *
+                      </Label>
+                      <Input
+                        id={`test-var-${variable}`}
+                        placeholder={`Valor para ${variable}`}
+                        value={testVariables[variable] || ""}
+                        onChange={(e) => 
+                          setTestVariables({...testVariables, [variable]: e.target.value})
+                        }
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {testTemplate && (
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                <p className="text-sm font-medium mb-2">Vista Previa del Mensaje:</p>
+                <p className="text-sm whitespace-pre-wrap">{testTemplate.content}</p>
+              </div>
+            )}
+
+            <Button
+              onClick={handleSendTestMessage}
+              disabled={sendingTest || !testTemplate || !testPhone || templates.length === 0}
+              className="w-full bg-yellow-600 hover:bg-yellow-700"
+              size="lg"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {sendingTest ? "Enviando..." : "Enviar Mensaje de Prueba"}
+            </Button>
+            
+            {templates.length === 0 && (
+              <Alert>
+                <AlertDescription className="text-xs">
+                  No hay plantillas aprobadas. Ve a <strong>Plantillas</strong> para crear y aprobar una primero.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {templates.length > 0 && (!testTemplate || !testPhone) && (
+              <p className="text-xs text-center text-muted-foreground">
+                {!testTemplate && "→ Selecciona una plantilla primero"}
+                {testTemplate && !testPhone && "→ Ingresa un número de teléfono"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="credenciales" className="space-y-4">
           <TabsList>
