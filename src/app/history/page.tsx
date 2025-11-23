@@ -8,10 +8,27 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { MessageSquare, Download, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { Download, Search, Filter, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { toast } from "sonner"
+
+// ✅ Get API key from localStorage
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('api_key') || '';
+  }
+  return '';
+};
+
+// ✅ Helper to add API key to fetch headers
+const getFetchHeaders = () => {
+  const apiKey = getApiKey();
+  return {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { 'x-api-key': apiKey } : {})
+  };
+};
 
 interface MessageLog {
   id: number
@@ -44,7 +61,15 @@ export default function HistoryPage() {
   })
 
   useEffect(() => {
-    fetchMessages()
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      toast.error("API Key no configurada", {
+        description: "Configura tu API Key en el Dashboard primero"
+      });
+      setLoading(false);
+    } else {
+      fetchMessages();
+    }
   }, [page, filters])
 
   const fetchMessages = async () => {
@@ -61,14 +86,21 @@ export default function HistoryPage() {
       if (filters.endDate) params.append("endDate", filters.endDate)
       if (filters.search) params.append("search", filters.search)
 
-      const res = await fetch(`/api/messages/history?${params}`)
+      const res = await fetch(`/api/messages/history?${params}`, {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         setMessages(data.messages)
         setTotal(data.total)
+      } else if (res.status === 401) {
+        toast.error("API Key inválida", {
+          description: "Verifica tu API Key en el Dashboard"
+        });
       }
     } catch (err) {
       console.error("Error fetching messages:", err)
+      toast.error("Error al cargar mensajes")
     } finally {
       setLoading(false)
     }
@@ -141,31 +173,6 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-8 w-8 text-green-600" />
-              <h1 className="text-2xl font-bold">WhatsApp Business API</h1>
-            </div>
-            <nav className="flex gap-4">
-              <Link href="/">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Link href="/templates">
-                <Button variant="ghost">Plantillas</Button>
-              </Link>
-              <Link href="/messages">
-                <Button variant="ghost">Mensajes</Button>
-              </Link>
-              <Link href="/history">
-                <Button variant="ghost">Historial</Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>

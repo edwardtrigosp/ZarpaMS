@@ -7,11 +7,27 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, Upload, Send, CheckCircle2, Info, Zap } from "lucide-react"
-import Link from "next/link"
+import { Upload, Send, CheckCircle2, Info, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Papa from "papaparse"
 import { toast } from "sonner"
+
+// ✅ Get API key from localStorage
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('api_key') || '';
+  }
+  return '';
+};
+
+// ✅ Helper to add API key to fetch headers
+const getFetchHeaders = () => {
+  const apiKey = getApiKey();
+  return {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { 'x-api-key': apiKey } : {})
+  };
+};
 
 interface Template {
   id: number
@@ -45,12 +61,21 @@ export default function MessagesPage() {
   const [sendingTest, setSendingTest] = useState(false)
 
   useEffect(() => {
-    fetchTemplates()
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      toast.error("API Key no configurada", {
+        description: "Configura tu API Key en el Dashboard primero"
+      });
+    } else {
+      fetchTemplates();
+    }
   }, [])
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch("/api/templates?status=APPROVED&limit=50")
+      const res = await fetch("/api/templates?status=APPROVED&limit=50", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         // Parse variables field if it's a JSON string
@@ -69,6 +94,10 @@ export default function MessagesPage() {
         } else {
           toast.info("No hay plantillas aprobadas. Ve a Plantillas para crear una.")
         }
+      } else if (res.status === 401) {
+        toast.error("API Key inválida", {
+          description: "Verifica tu API Key en el Dashboard"
+        });
       }
     } catch (err) {
       console.error("Error fetching templates:", err)
@@ -166,7 +195,7 @@ export default function MessagesPage() {
 
       const res = await fetch("/api/messages/bulk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getFetchHeaders(),
         body: JSON.stringify(payload),
       })
 
@@ -246,7 +275,7 @@ export default function MessagesPage() {
 
       const res = await fetch("/api/messages/bulk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getFetchHeaders(),
         body: JSON.stringify(payload),
       })
 
@@ -346,31 +375,6 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-8 w-8 text-green-600" />
-              <h1 className="text-2xl font-bold">WhatsApp Business API</h1>
-            </div>
-            <nav className="flex gap-4">
-              <Link href="/">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Link href="/templates">
-                <Button variant="ghost">Plantillas</Button>
-              </Link>
-              <Link href="/messages">
-                <Button variant="ghost">Mensajes</Button>
-              </Link>
-              <Link href="/history">
-                <Button variant="ghost">Historial</Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Envío Masivo de Mensajes</h2>

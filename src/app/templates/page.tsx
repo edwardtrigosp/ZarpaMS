@@ -10,8 +10,25 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MessageSquare, Plus, Edit, Trash2, Eye, FileText } from "lucide-react"
-import Link from "next/link"
+import { Plus, Edit, Trash2, FileText } from "lucide-react"
+import { toast } from "sonner"
+
+// ✅ Get API key from localStorage
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('api_key') || '';
+  }
+  return '';
+};
+
+// ✅ Helper to add API key to fetch headers
+const getFetchHeaders = () => {
+  const apiKey = getApiKey();
+  return {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { 'x-api-key': apiKey } : {})
+  };
+};
 
 interface Template {
   id: number
@@ -44,12 +61,21 @@ export default function TemplatesPage() {
   })
 
   useEffect(() => {
-    fetchTemplates()
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      toast.error("API Key no configurada", {
+        description: "Configura tu API Key en el Dashboard primero"
+      });
+    } else {
+      fetchTemplates();
+    }
   }, [])
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch("/api/templates?limit=50")
+      const res = await fetch("/api/templates?limit=50", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         // Parse variables if they come as JSON strings
@@ -62,9 +88,14 @@ export default function TemplatesPage() {
               : []
         }))
         setTemplates(parsedData)
+      } else if (res.status === 401) {
+        toast.error("API Key inválida", {
+          description: "Verifica tu API Key en el Dashboard"
+        });
       }
     } catch (err) {
       console.error("Error fetching templates:", err)
+      toast.error("Error al cargar plantillas")
     } finally {
       setLoading(false)
     }
@@ -96,25 +127,28 @@ export default function TemplatesPage() {
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: getFetchHeaders(),
         body: JSON.stringify(payload),
       })
 
       if (res.ok) {
-        setSuccess(
-          editingTemplate
-            ? "Plantilla actualizada exitosamente"
-            : "Plantilla creada exitosamente"
-        )
+        const successMsg = editingTemplate
+          ? "Plantilla actualizada exitosamente"
+          : "Plantilla creada exitosamente"
+        setSuccess(successMsg)
+        toast.success(successMsg)
         setIsDialogOpen(false)
         fetchTemplates()
         resetForm()
       } else {
         const data = await res.json()
-        setError(data.error || "Error al guardar la plantilla")
+        const errorMsg = data.error || "Error al guardar la plantilla"
+        setError(errorMsg)
+        toast.error(errorMsg)
       }
     } catch (err) {
       setError("Error de conexión")
+      toast.error("Error de conexión")
     }
   }
 
@@ -135,16 +169,23 @@ export default function TemplatesPage() {
     if (!confirm("¿Estás seguro de eliminar esta plantilla?")) return
 
     try {
-      const res = await fetch(`/api/templates/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/templates/${id}`, { 
+        method: "DELETE",
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         setSuccess("Plantilla eliminada exitosamente")
+        toast.success("Plantilla eliminada exitosamente")
         fetchTemplates()
       } else {
         const data = await res.json()
-        setError(data.error || "Error al eliminar la plantilla")
+        const errorMsg = data.error || "Error al eliminar la plantilla"
+        setError(errorMsg)
+        toast.error(errorMsg)
       }
     } catch (err) {
       setError("Error de conexión")
+      toast.error("Error de conexión")
     }
   }
 
@@ -196,31 +237,6 @@ export default function TemplatesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-8 w-8 text-green-600" />
-              <h1 className="text-2xl font-bold">WhatsApp Business API</h1>
-            </div>
-            <nav className="flex gap-4">
-              <Link href="/">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Link href="/templates">
-                <Button variant="ghost">Plantillas</Button>
-              </Link>
-              <Link href="/messages">
-                <Button variant="ghost">Mensajes</Button>
-              </Link>
-              <Link href="/history">
-                <Button variant="ghost">Historial</Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>

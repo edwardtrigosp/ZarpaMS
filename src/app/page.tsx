@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock } from "lucide-react"
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock, Edit2, Save } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -90,6 +90,7 @@ export default function HomePage() {
   const [showUrlDialog, setShowUrlDialog] = useState(false)
   const [showTokenDialog, setShowTokenDialog] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [isEditingCredentials, setIsEditingCredentials] = useState(false)
 
   const [formData, setFormData] = useState({
     phoneNumberId: "",
@@ -238,8 +239,12 @@ export default function HomePage() {
       if (res.ok) {
         const data = await res.json()
         setConfig(data)
-        setSuccess("Configuración guardada exitosamente")
-        toast.success("Configuración guardada exitosamente")
+        setSuccess("✅ Credenciales guardadas exitosamente")
+        toast.success("✅ Credenciales guardadas exitosamente", {
+          description: "Tu configuración de WhatsApp ha sido actualizada",
+          duration: 5000
+        })
+        setIsEditingCredentials(false)
       } else {
         const data = await res.json()
         setError(data.error || "Error al guardar la configuración")
@@ -515,39 +520,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-8 w-8 text-green-600" />
-              <h1 className="text-2xl font-bold">WhatsApp Business API</h1>
-            </div>
-            <nav className="flex gap-4">
-              <Link href="/">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Link href="/templates">
-                <Button variant="ghost">Plantillas</Button>
-              </Link>
-              <Link href="/messages">
-                <Button variant="ghost">Mensajes</Button>
-              </Link>
-              <Link href="/history">
-                <Button variant="ghost">Historial</Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowApiKeySetup(true)}
-                title="Configurar API Key"
-              >
-                🔑 API Key
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
@@ -631,10 +603,26 @@ export default function HomePage() {
           <TabsContent value="config" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Configuración de WhatsApp Business API</CardTitle>
-                <CardDescription>
-                  Configura las credenciales de Meta para conectar con WhatsApp Business API
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Configuración de WhatsApp Business API</CardTitle>
+                    <CardDescription>
+                      {isEditingCredentials 
+                        ? "Edita las credenciales de Meta para conectar con WhatsApp Business API"
+                        : "Tus credenciales están configuradas y guardadas de forma segura"
+                      }
+                    </CardDescription>
+                  </div>
+                  {!isEditingCredentials && config && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setIsEditingCredentials(true)}
+                    >
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Editar Credenciales
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {error && (
@@ -644,94 +632,152 @@ export default function HomePage() {
                 )}
 
                 {success && (
-                  <Alert className="border-green-600 text-green-600">
-                    <AlertDescription>{success}</AlertDescription>
+                  <Alert className="border-green-600 bg-green-50 dark:bg-green-950/20">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800 dark:text-green-300">
+                      {success}
+                    </AlertDescription>
                   </Alert>
                 )}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneNumberId">Phone Number ID</Label>
-                    <Input
-                      id="phoneNumberId"
-                      placeholder="123456789012345"
-                      value={formData.phoneNumberId}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phoneNumberId: e.target.value })
-                      }
-                    />
+                {!isEditingCredentials && config ? (
+                  <div className="space-y-4">
+                    <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-900 dark:text-blue-300">
+                        <strong>✅ Configuración Activa</strong>
+                        <p className="text-sm mt-2">
+                          Tus credenciales de WhatsApp Business API están configuradas correctamente. 
+                          Puedes editar la configuración haciendo clic en "Editar Credenciales" arriba.
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Phone Number ID</Label>
+                        <p className="font-mono text-sm mt-1">{config.phoneNumberId}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Business Account ID</Label>
+                        <p className="font-mono text-sm mt-1">{config.businessAccountId}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Estado</Label>
+                        <div className="mt-1">
+                          {config.isVerified ? (
+                            <Badge className="bg-green-600">✓ Verificado</Badge>
+                          ) : (
+                            <Badge variant="destructive">No Verificado</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Límites</Label>
+                        <p className="text-sm mt-1">Diario: {config.dailyLimit} | Pico: {config.peakLimit}</p>
+                      </div>
+                    </div>
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="phoneNumberId">Phone Number ID *</Label>
+                        <Input
+                          id="phoneNumberId"
+                          placeholder="123456789012345"
+                          value={formData.phoneNumberId}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phoneNumberId: e.target.value })
+                          }
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="businessAccountId">Business Account ID</Label>
-                    <Input
-                      id="businessAccountId"
-                      placeholder="987654321098765"
-                      value={formData.businessAccountId}
-                      onChange={(e) =>
-                        setFormData({ ...formData, businessAccountId: e.target.value })
-                      }
-                    />
+                      <div className="space-y-2">
+                        <Label htmlFor="businessAccountId">Business Account ID *</Label>
+                        <Input
+                          id="businessAccountId"
+                          placeholder="987654321098765"
+                          value={formData.businessAccountId}
+                          onChange={(e) =>
+                            setFormData({ ...formData, businessAccountId: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="accessToken">Access Token *</Label>
+                        <Input
+                          id="accessToken"
+                          type="password"
+                          placeholder="EAABsbCS1iHgBO..."
+                          value={formData.accessToken}
+                          onChange={(e) =>
+                            setFormData({ ...formData, accessToken: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="webhookVerifyToken">Webhook Verify Token *</Label>
+                        <Input
+                          id="webhookVerifyToken"
+                          placeholder="my_secure_verify_token"
+                          value={formData.webhookVerifyToken}
+                          onChange={(e) =>
+                            setFormData({ ...formData, webhookVerifyToken: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="dailyLimit">Límite Diario</Label>
+                        <Input
+                          id="dailyLimit"
+                          type="number"
+                          value={formData.dailyLimit}
+                          onChange={(e) =>
+                            setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="peakLimit">Límite Pico</Label>
+                        <Input
+                          id="peakLimit"
+                          type="number"
+                          value={formData.peakLimit}
+                          onChange={(e) =>
+                            setFormData({ ...formData, peakLimit: parseInt(e.target.value) })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <Button onClick={handleSave} disabled={saving} size="lg">
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? "Guardando..." : "Guardar Credenciales"}
+                      </Button>
+                      <Button onClick={handleVerify} variant="outline" disabled={verifying}>
+                        {verifying ? "Verificando..." : "Verificar Conexión"}
+                      </Button>
+                      {config && (
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => {
+                            setIsEditingCredentials(false)
+                            setError("")
+                            setSuccess("")
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="accessToken">Access Token</Label>
-                    <Input
-                      id="accessToken"
-                      type="password"
-                      placeholder="EAABsbCS1iHgBO..."
-                      value={formData.accessToken}
-                      onChange={(e) =>
-                        setFormData({ ...formData, accessToken: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="webhookVerifyToken">Webhook Verify Token</Label>
-                    <Input
-                      id="webhookVerifyToken"
-                      placeholder="my_secure_verify_token"
-                      value={formData.webhookVerifyToken}
-                      onChange={(e) =>
-                        setFormData({ ...formData, webhookVerifyToken: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="dailyLimit">Límite Diario</Label>
-                    <Input
-                      id="dailyLimit"
-                      type="number"
-                      value={formData.dailyLimit}
-                      onChange={(e) =>
-                        setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="peakLimit">Límite Pico</Label>
-                    <Input
-                      id="peakLimit"
-                      type="number"
-                      value={formData.peakLimit}
-                      onChange={(e) =>
-                        setFormData({ ...formData, peakLimit: parseInt(e.target.value) })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? "Guardando..." : "Guardar Configuración"}
-                  </Button>
-                  <Button onClick={handleVerify} variant="outline" disabled={verifying}>
-                    {verifying ? "Verificando..." : "Verificar Conexión"}
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
