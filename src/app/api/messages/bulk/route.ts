@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { messageLogs, messageTemplates, contacts } from '@/db/schema';
+import { messageLogs, messageTemplates, contacts, whatsappConfig } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { validateApiKey, sanitizePhoneNumber, sanitizeString, addSecurityHeaders, rateLimit, logSecurityEvent } from '@/lib/security';
 
@@ -18,6 +18,87 @@ interface BulkMessageRequest {
 
 // Rate limiter: 5 bulk sends per minute
 const rateLimiter = rateLimit({ windowMs: 60000, maxRequests: 5 });
+
+// ✅ Helper function to send WhatsApp message
+async function sendWhatsAppMessage(
+  phoneNumber: string,
+  messageContent: string,
+  templateName: string,
+  variables: Record<string, string> | undefined,
+  config: any
+) {
+  try {
+    const whatsappApiUrl = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+
+    // Prepare template components for WhatsApp API
+    const components: any[] = [];
+
+    // If template has variables, add body component with parameters
+    if (variables && Object.keys(variables).length > 0) {
+      const parameters = Object.values(variables).map(value => ({
+        type: "text",
+        text: value
+      }));
+
+      components.push({
+        type: "body",
+        parameters
+      });
+    }
+
+    const payload = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: phoneNumber,
+      type: "template",
+      template: {
+        name: templateName,
+        language: {
+          code: "es_MX" // Spanish Mexico
+        },
+        components: components.length > 0 ? components : undefined
+      }
+    };
+
+    console.log('📤 Sending WhatsApp message:', {
+      to: phoneNumber,
+      template: templateName,
+      hasVariables: !!variables
+    });
+
+    const response = await fetch(whatsappApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ WhatsApp API Error:', data);
+      throw new Error(data.error?.message || 'Failed to send message');
+    }
+
+    console.log('✅ WhatsApp message sent:', data);
+
+    return {
+      success: true,
+      metaMessageId: data.messages?.[0]?.id || null,
+      data
+    };
+
+  } catch (error: any) {
+    console.error('❌ Error sending WhatsApp message:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to send message',
+      metaMessageId: null
+    };
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,6 +200,33 @@ export async function POST(request: NextRequest) {
       contactsArray[i].phoneNumber = phoneValidation.sanitized!;
     }
 
+    // ✅ Fetch WhatsApp configuration
+    const configData = await db.select()
+      .from(whatsappConfig)
+      .limit(1);
+
+    if (configData.length === 0) {
+      return NextResponse.json(
+        { 
+          error: 'WhatsApp configuration not found. Please configure WhatsApp in Dashboard first.',
+          code: 'CONFIG_NOT_FOUND'
+        },
+        { status: 400 }
+      );
+    }
+
+    const config = configData[0];
+
+    if (!config.isVerified) {
+      return NextResponse.json(
+        { 
+          error: 'WhatsApp configuration is not verified. Please verify in Dashboard first.',
+          code: 'CONFIG_NOT_VERIFIED'
+        },
+        { status: 400 }
+      );
+    }
+
     // Fetch template
     const template = await db.select()
       .from(messageTemplates)
@@ -136,8 +244,25 @@ export async function POST(request: NextRequest) {
     }
 
     const templateData = template[0];
+
+    // ✅ Verify template is approved
+    if (templateData.status !== 'APPROVED') {
+      return NextResponse.json(
+        { 
+          error: `Template must be APPROVED by Meta. Current status: ${templateData.status}`,
+          code: 'TEMPLATE_NOT_APPROVED'
+        },
+        { status: 400 }
+      );
+    }
+
     const currentTime = new Date().toISOString();
     const createdMessages = [];
+    const sendResults = {
+      successful: 0,
+      failed: 0,
+      queued: 0
+    };
 
     // Process each contact
     for (const contactInput of contactsArray) {
@@ -155,7 +280,6 @@ export async function POST(request: NextRequest) {
       let contactId: number;
 
       if (existingContact.length === 0) {
-        // Create new contact
         const newContact = await db.insert(contacts)
           .values({
             phoneNumber,
@@ -169,7 +293,6 @@ export async function POST(request: NextRequest) {
       } else {
         contactId = existingContact[0].id;
         
-        // Update contact name if provided and different
         if (sanitizedName && existingContact[0].name !== sanitizedName) {
           await db.update(contacts)
             .set({ name: sanitizedName })
@@ -177,15 +300,13 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Replace variables in template content
+      // Replace variables in template content for display
       let messageContent = templateData.content;
 
-      // Replace name variable
       if (sanitizedName) {
         messageContent = messageContent.replace(/\{\{name\}\}/g, sanitizedName);
       }
 
-      // ✅ SECURITY FIX: Sanitize custom variables
       if (variables) {
         for (const [key, value] of Object.entries(variables)) {
           const sanitizedValue = sanitizeString(value);
@@ -194,9 +315,35 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Determine status and sentAt based on scheduledAt
-      const status = scheduledAt ? 'QUEUED' : 'SENT';
-      const sentAt = scheduledAt ? null : currentTime;
+      // ✅ Send message immediately if not scheduled
+      let status = 'QUEUED';
+      let sentAt = null;
+      let metaMessageId = null;
+      let errorMessage = null;
+
+      if (!scheduledAt) {
+        // 🚀 SEND MESSAGE TO WHATSAPP NOW
+        const sendResult = await sendWhatsAppMessage(
+          phoneNumber,
+          messageContent,
+          templateData.name,
+          variables,
+          config
+        );
+
+        if (sendResult.success) {
+          status = 'SENT';
+          sentAt = currentTime;
+          metaMessageId = sendResult.metaMessageId;
+          sendResults.successful++;
+        } else {
+          status = 'FAILED';
+          errorMessage = sendResult.error;
+          sendResults.failed++;
+        }
+      } else {
+        sendResults.queued++;
+      }
 
       // Create message log entry
       const messageLog = await db.insert(messageLogs)
@@ -206,8 +353,8 @@ export async function POST(request: NextRequest) {
           phoneNumber,
           messageContent,
           status,
-          metaMessageId: null,
-          errorMessage: null,
+          metaMessageId,
+          errorMessage,
           scheduledAt: scheduledAt || null,
           sentAt,
           deliveredAt: null,
@@ -218,10 +365,13 @@ export async function POST(request: NextRequest) {
       createdMessages.push(messageLog[0]);
     }
 
+    console.log('📊 Bulk send results:', sendResults);
+
     const response = NextResponse.json(
       {
         success: true,
         messageCount: createdMessages.length,
+        results: sendResults,
         messages: createdMessages
       },
       { status: 201 }
