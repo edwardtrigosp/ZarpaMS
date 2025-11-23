@@ -26,6 +26,15 @@ const setApiKey = (key: string) => {
   }
 };
 
+// ✅ Helper to add API key to fetch headers
+const getFetchHeaders = () => {
+  const apiKey = getApiKey();
+  return {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { 'x-api-key': apiKey } : {})
+  };
+};
+
 interface WhatsAppConfig {
   phoneNumberId: string
   // accessToken is now hidden from client
@@ -91,11 +100,22 @@ export default function HomePage() {
     peakLimit: 10000,
   })
 
+  // ✅ Add API Key state
+  const [apiKey, setApiKeyState] = useState("")
+  const [showApiKeySetup, setShowApiKeySetup] = useState(false)
+
   useEffect(() => {
-    fetchConfig()
-    fetchStats()
-    fetchWebhookInfo()
-    fetchWebhookEvents()
+    const savedKey = getApiKey();
+    setApiKeyState(savedKey);
+    
+    if (!savedKey) {
+      setShowApiKeySetup(true);
+    } else {
+      fetchConfig();
+      fetchStats();
+      fetchWebhookInfo();
+      fetchWebhookEvents();
+    }
   }, [])
 
   // Auto-refresh webhook events every 5 seconds
@@ -111,7 +131,9 @@ export default function HomePage() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch("/api/whatsapp/config")
+      const res = await fetch("/api/whatsapp/config", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         setConfig(data)
@@ -123,6 +145,9 @@ export default function HomePage() {
           dailyLimit: data.dailyLimit,
           peakLimit: data.peakLimit,
         })
+      } else if (res.status === 401) {
+        setShowApiKeySetup(true);
+        toast.error("API Key inválida o faltante");
       }
     } catch (err) {
       console.error("Error fetching config:", err)
@@ -133,7 +158,9 @@ export default function HomePage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch("/api/messages/stats")
+      const res = await fetch("/api/messages/stats", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         setStats(data)
@@ -145,7 +172,9 @@ export default function HomePage() {
 
   const fetchWebhookInfo = async () => {
     try {
-      const res = await fetch("/api/whatsapp/webhook-url")
+      const res = await fetch("/api/whatsapp/webhook-url", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         setWebhookInfo(data)
@@ -158,7 +187,9 @@ export default function HomePage() {
   const fetchWebhookEvents = async (silent = false) => {
     if (!silent) setLoadingEvents(true)
     try {
-      const res = await fetch("/api/whatsapp/webhook-logs?limit=20")
+      const res = await fetch("/api/whatsapp/webhook-logs?limit=20", {
+        headers: getFetchHeaders()
+      })
       if (res.ok) {
         const data = await res.json()
         setWebhookEvents(data)
@@ -177,7 +208,8 @@ export default function HomePage() {
 
     try {
       const res = await fetch("/api/whatsapp/webhook-logs", {
-        method: "DELETE"
+        method: "DELETE",
+        headers: getFetchHeaders()
       })
       
       if (res.ok) {
@@ -199,7 +231,7 @@ export default function HomePage() {
     try {
       const res = await fetch("/api/whatsapp/config", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getFetchHeaders(),
         body: JSON.stringify(formData),
       })
 
@@ -229,7 +261,7 @@ export default function HomePage() {
     try {
       const res = await fetch("/api/whatsapp/verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getFetchHeaders(),
         body: JSON.stringify({
           phoneNumberId: formData.phoneNumberId,
           accessToken: formData.accessToken,
@@ -252,6 +284,24 @@ export default function HomePage() {
     } finally {
       setVerifying(false)
     }
+  }
+
+  const handleSaveApiKey = () => {
+    if (!apiKey.trim()) {
+      toast.error("Por favor ingresa una API Key válida");
+      return;
+    }
+    
+    setApiKey(apiKey);
+    setApiKeyState(apiKey);
+    setShowApiKeySetup(false);
+    toast.success("API Key guardada exitosamente");
+    
+    // Reload data with new API key
+    fetchConfig();
+    fetchStats();
+    fetchWebhookInfo();
+    fetchWebhookEvents();
   }
 
   const copyToClipboard = async (text: string, type: 'url' | 'token') => {
@@ -395,6 +445,63 @@ export default function HomePage() {
     })
   }
 
+  if (showApiKeySetup) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-2xl w-full">
+          <CardHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              <CardTitle>Configuración de Seguridad</CardTitle>
+            </div>
+            <CardDescription>
+              Para usar la aplicación, necesitas configurar tu API Key de seguridad
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200">
+              <AlertDescription>
+                <div className="space-y-3">
+                  <p className="font-semibold">📋 ¿Cómo obtener tu API Key?</p>
+                  <ol className="list-decimal ml-4 space-y-2 text-sm">
+                    <li>Abre tu archivo <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">.env</code> en el proyecto</li>
+                    <li>Busca la variable <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">API_SECRET_KEY</code></li>
+                    <li>Copia el valor y pégalo abajo</li>
+                  </ol>
+                  <p className="text-xs mt-3 text-muted-foreground">
+                    💡 <strong>¿No tienes una API Key?</strong> Lee el archivo <code>SECURITY_SETUP.md</code> para generarla
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="apiKey">API Key</Label>
+              <Input
+                id="apiKey"
+                type="password"
+                placeholder="Pega tu API_SECRET_KEY aquí"
+                value={apiKey}
+                onChange={(e) => setApiKeyState(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+
+            <Button onClick={handleSaveApiKey} className="w-full">
+              Guardar y Continuar
+            </Button>
+
+            <Alert>
+              <AlertDescription className="text-xs">
+                <strong>🔒 Seguridad:</strong> Tu API Key se guarda localmente en tu navegador y solo se envía a tu propio servidor.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -428,6 +535,14 @@ export default function HomePage() {
               <Link href="/history">
                 <Button variant="ghost">Historial</Button>
               </Link>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowApiKeySetup(true)}
+                title="Configurar API Key"
+              >
+                🔑 API Key
+              </Button>
             </nav>
           </div>
         </div>
