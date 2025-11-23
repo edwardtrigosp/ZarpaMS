@@ -28,6 +28,11 @@ const menuItems = [
     label: "Historial",
     href: "/history",
   },
+  {
+    icon: Settings,
+    label: "Configuración",
+    href: "/configuracion",
+  },
 ]
 
 export const Sidebar = () => {
