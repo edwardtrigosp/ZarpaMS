@@ -447,7 +447,7 @@ export default function ConfiguracionPage() {
                   }
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 !w-[31700%] !h-[434px]">
                 {error &&
                 <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
