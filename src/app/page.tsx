@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText } from "lucide-react"
-import Link from "next/link"
-import { toast } from "sonner"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
 
 // ✅ Get API key from localStorage
 const getApiKey = () => {
@@ -35,92 +35,92 @@ const getFetchHeaders = () => {
 };
 
 interface WhatsAppConfig {
-  phoneNumberId: string
-  businessAccountId: string
-  webhookVerifyToken: string
-  isVerified: boolean
-  dailyLimit: number
-  peakLimit: number
+  phoneNumberId: string;
+  businessAccountId: string;
+  webhookVerifyToken: string;
+  isVerified: boolean;
+  dailyLimit: number;
+  peakLimit: number;
 }
 
 interface Stats {
-  dailyCount: number
-  dailyLimit: number
-  remainingDaily: number
-  utilizationDaily: number
-  peakCount: number
-  peakLimit: number
-  remainingPeak: number
-  utilizationPeak: number
+  dailyCount: number;
+  dailyLimit: number;
+  remainingDaily: number;
+  utilizationDaily: number;
+  peakCount: number;
+  peakLimit: number;
+  remainingPeak: number;
+  utilizationPeak: number;
 }
 
 export default function HomePage() {
-  const [config, setConfig] = useState<WhatsAppConfig | null>(null)
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [apiKey, setApiKeyState] = useState("")
-  const [showApiKeySetup, setShowApiKeySetup] = useState(false)
+  const [config, setConfig] = useState<WhatsAppConfig | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiKey, setApiKeyState] = useState("");
+  const [showApiKeySetup, setShowApiKeySetup] = useState(false);
 
   useEffect(() => {
     const savedKey = getApiKey();
     setApiKeyState(savedKey);
-    
+
     if (!savedKey) {
       setShowApiKeySetup(true);
     } else {
       fetchConfig();
       fetchStats();
     }
-  }, [])
+  }, []);
 
   const fetchConfig = async () => {
     try {
       const res = await fetch("/api/whatsapp/config", {
         headers: getFetchHeaders()
-      })
+      });
       if (res.ok) {
-        const data = await res.json()
-        setConfig(data)
+        const data = await res.json();
+        setConfig(data);
       } else if (res.status === 401) {
         setShowApiKeySetup(true);
         toast.error("API Key inválida o faltante");
       }
     } catch (err) {
-      console.error("Error fetching config:", err)
+      console.error("Error fetching config:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/messages/stats", {
         headers: getFetchHeaders()
-      })
+      });
       if (res.ok) {
-        const data = await res.json()
-        setStats(data)
+        const data = await res.json();
+        setStats(data);
       }
     } catch (err) {
-      console.error("Error fetching stats:", err)
+      console.error("Error fetching stats:", err);
     }
-  }
+  };
 
   const handleSaveApiKey = () => {
     if (!apiKey.trim()) {
       toast.error("Por favor ingresa una API Key válida");
       return;
     }
-    
+
     setApiKey(apiKey);
     setApiKeyState(apiKey);
     setShowApiKeySetup(false);
     toast.success("API Key guardada exitosamente");
-    
+
     // Reload data with new API key
     fetchConfig();
     fetchStats();
-  }
+  };
 
   if (showApiKeySetup) {
     return (
@@ -160,8 +160,8 @@ export default function HomePage() {
                 placeholder="Pega tu API_SECRET_KEY aquí"
                 value={apiKey}
                 onChange={(e) => setApiKeyState(e.target.value)}
-                className="font-mono"
-              />
+                className="font-mono" />
+
             </div>
 
             <Button onClick={handleSaveApiKey} className="w-full">
@@ -175,8 +175,8 @@ export default function HomePage() {
             </Alert>
           </CardContent>
         </Card>
-      </div>
-    )
+      </div>);
+
   }
 
   if (loading) {
@@ -186,13 +186,13 @@ export default function HomePage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Cargando...</p>
         </div>
-      </div>
-    )
+      </div>);
+
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 !w-full !h-full !max-w-full">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
           <p className="text-muted-foreground">
@@ -243,19 +243,19 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Estado</CardTitle>
-              {config?.isVerified ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <XCircle className="h-4 w-4 text-destructive" />
-              )}
+              {config?.isVerified ?
+              <CheckCircle className="h-4 w-4 text-green-600" /> :
+
+              <XCircle className="h-4 w-4 text-destructive" />
+              }
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {config?.isVerified ? (
-                  <Badge variant="default" className="bg-green-600">Verificado</Badge>
-                ) : (
-                  <Badge variant="destructive">No Verificado</Badge>
-                )}
+                {config?.isVerified ?
+                <Badge variant="default" className="bg-green-600">Verificado</Badge> :
+
+                <Badge variant="destructive">No Verificado</Badge>
+                }
               </div>
               <p className="text-xs text-muted-foreground">
                 {config?.isVerified ? "Conexión activa" : "Requiere verificación"}
@@ -305,6 +305,6 @@ export default function HomePage() {
           </div>
         </div>
       </main>
-    </div>
-  )
+    </div>);
+
 }
