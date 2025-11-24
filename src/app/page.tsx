@@ -192,7 +192,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 !w-full !h-full !max-w-full">
+      <main className="container mx-auto px-4 py-8 !w-[507px] !h-full !max-w-[507px]">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
           <p className="text-muted-foreground">
