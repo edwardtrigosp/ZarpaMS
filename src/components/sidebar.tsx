@@ -41,10 +41,10 @@ export const Sidebar = () => {
 
   return (
     <aside
-      className="!w-[282px] !h-full">
-
-
-
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen border-r bg-sidebar transition-all duration-300",
+        collapsed ? "w-16" : "w-64"
+      )}>
 
       <div className="flex h-full flex-col">
         {/* Header */}
@@ -61,7 +61,7 @@ export const Sidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2 !w-full !h-[411px]">
+        <nav className="flex-1 space-y-1 p-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;

@@ -402,13 +402,13 @@ export default function ConfiguracionPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Cargando configuración...</p>
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background !w-[58px] !h-full">
-      <main className="container mx-auto px-4 py-8 !max-w-[687px] !w-0 !h-0">
+    <div className="min-h-screen bg-background">
+      <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Configuración</h2>
           <p className="text-muted-foreground">
@@ -430,52 +430,51 @@ export default function ConfiguracionPage() {
                   <div>
                     <CardTitle>Configuración de WhatsApp Business API</CardTitle>
                     <CardDescription>
-                      {isEditingCredentials ?
-                      "Edita las credenciales de Meta para conectar con WhatsApp Business API" :
-                      "Tus credenciales están configuradas y guardadas de forma segura"
-                      }
+                      {isEditingCredentials
+                        ? "Edita las credenciales de Meta para conectar con WhatsApp Business API"
+                        : "Tus credenciales están configuradas y guardadas de forma segura"}
                     </CardDescription>
                   </div>
-                  {!isEditingCredentials && config &&
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditingCredentials(true)}>
-
+                  {!isEditingCredentials && config && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingCredentials(true)}
+                    >
                       <Edit2 className="h-4 w-4 mr-2" />
                       Editar Credenciales
                     </Button>
-                  }
+                  )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4 !w-[31700%] !h-[434px]">
-                {error &&
-                <Alert variant="destructive">
+              <CardContent className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
-                }
+                )}
 
-                {success &&
-                <Alert className="border-green-600 bg-green-50 dark:bg-green-950/20">
+                {success && (
+                  <Alert className="border-green-600 bg-green-50 dark:bg-green-950/20">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <AlertDescription className="text-green-800 dark:text-green-300">
                       {success}
                     </AlertDescription>
                   </Alert>
-                }
+                )}
 
-                {!isEditingCredentials && config ?
-                <div className="space-y-4">
+                {!isEditingCredentials && config ? (
+                  <div className="space-y-4">
                     <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
                       <CheckCircle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-900 dark:text-blue-300">
                         <strong>✅ Configuración Activa</strong>
                         <p className="text-sm mt-2">
-                          Tus credenciales de WhatsApp Business API están configuradas correctamente. 
+                          Tus credenciales de WhatsApp Business API están configuradas correctamente.
                           Puedes editar la configuración haciendo clic en "Editar Credenciales" arriba.
                         </p>
                       </AlertDescription>
                     </Alert>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
                       <div>
                         <Label className="text-xs text-muted-foreground">Phone Number ID</Label>
@@ -488,11 +487,11 @@ export default function ConfiguracionPage() {
                       <div>
                         <Label className="text-xs text-muted-foreground">Estado</Label>
                         <div className="mt-1">
-                          {config.isVerified ?
-                        <Badge className="bg-green-600">✓ Verificado</Badge> :
-
-                        <Badge variant="destructive">No Verificado</Badge>
-                        }
+                          {config.isVerified ? (
+                            <Badge className="bg-green-600">✓ Verificado</Badge>
+                          ) : (
+                            <Badge variant="destructive">No Verificado</Badge>
+                          )}
                         </div>
                       </div>
                       <div>
@@ -500,81 +499,81 @@ export default function ConfiguracionPage() {
                         <p className="text-sm mt-1">Diario: {config.dailyLimit} | Pico: {config.peakLimit}</p>
                       </div>
                     </div>
-                  </div> :
-
-                <div className="space-y-4">
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="phoneNumberId">Phone Number ID *</Label>
                         <Input
-                        id="phoneNumberId"
-                        placeholder="123456789012345"
-                        value={formData.phoneNumberId}
-                        onChange={(e) =>
-                        setFormData({ ...formData, phoneNumberId: e.target.value })
-                        } />
-
+                          id="phoneNumberId"
+                          placeholder="123456789012345"
+                          value={formData.phoneNumberId}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phoneNumberId: e.target.value })
+                          }
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="businessAccountId">Business Account ID *</Label>
                         <Input
-                        id="businessAccountId"
-                        placeholder="987654321098765"
-                        value={formData.businessAccountId}
-                        onChange={(e) =>
-                        setFormData({ ...formData, businessAccountId: e.target.value })
-                        } />
-
+                          id="businessAccountId"
+                          placeholder="987654321098765"
+                          value={formData.businessAccountId}
+                          onChange={(e) =>
+                            setFormData({ ...formData, businessAccountId: e.target.value })
+                          }
+                        />
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="accessToken">Access Token *</Label>
                         <Input
-                        id="accessToken"
-                        type="password"
-                        placeholder="EAABsbCS1iHgBO..."
-                        value={formData.accessToken}
-                        onChange={(e) =>
-                        setFormData({ ...formData, accessToken: e.target.value })
-                        } />
-
+                          id="accessToken"
+                          type="password"
+                          placeholder="EAABsbCS1iHgBO..."
+                          value={formData.accessToken}
+                          onChange={(e) =>
+                            setFormData({ ...formData, accessToken: e.target.value })
+                          }
+                        />
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="webhookVerifyToken">Webhook Verify Token *</Label>
                         <Input
-                        id="webhookVerifyToken"
-                        placeholder="my_secure_verify_token"
-                        value={formData.webhookVerifyToken}
-                        onChange={(e) =>
-                        setFormData({ ...formData, webhookVerifyToken: e.target.value })
-                        } />
-
+                          id="webhookVerifyToken"
+                          placeholder="my_secure_verify_token"
+                          value={formData.webhookVerifyToken}
+                          onChange={(e) =>
+                            setFormData({ ...formData, webhookVerifyToken: e.target.value })
+                          }
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="dailyLimit">Límite Diario</Label>
                         <Input
-                        id="dailyLimit"
-                        type="number"
-                        value={formData.dailyLimit}
-                        onChange={(e) =>
-                        setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })
-                        } />
-
+                          id="dailyLimit"
+                          type="number"
+                          value={formData.dailyLimit}
+                          onChange={(e) =>
+                            setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })
+                          }
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="peakLimit">Límite Pico</Label>
                         <Input
-                        id="peakLimit"
-                        type="number"
-                        value={formData.peakLimit}
-                        onChange={(e) =>
-                        setFormData({ ...formData, peakLimit: parseInt(e.target.value) })
-                        } />
-
+                          id="peakLimit"
+                          type="number"
+                          value={formData.peakLimit}
+                          onChange={(e) =>
+                            setFormData({ ...formData, peakLimit: parseInt(e.target.value) })
+                          }
+                        />
                       </div>
                     </div>
 
@@ -586,21 +585,21 @@ export default function ConfiguracionPage() {
                       <Button onClick={handleVerify} variant="outline" disabled={verifying}>
                         {verifying ? "Verificando..." : "Verificar Conexión"}
                       </Button>
-                      {config &&
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setIsEditingCredentials(false);
-                        setError("");
-                        setSuccess("");
-                      }}>
-
+                      {config && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setIsEditingCredentials(false);
+                            setError("");
+                            setSuccess("");
+                          }}
+                        >
                           Cancelar
                         </Button>
-                    }
+                      )}
                     </div>
                   </div>
-                }
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -627,22 +626,22 @@ export default function ConfiguracionPage() {
                         readOnly
                         className="font-mono text-sm cursor-pointer select-all pr-20"
                         onClick={() => selectAllText('webhook-url-input')}
-                        onFocus={(e) => e.target.select()} />
-
+                        onFocus={(e) => e.target.select()}
+                      />
                     </div>
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() => copyToClipboard(webhookInfo?.webhookUrl || "", 'url')}
-                      title="Copiar URL">
-
+                      title="Copiar URL"
+                    >
                       {copiedUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setShowUrlDialog(true)}
-                      title="Ver en cuadro grande">
-
+                      title="Ver en cuadro grande"
+                    >
                       Ver
                     </Button>
                   </div>
@@ -669,24 +668,24 @@ export default function ConfiguracionPage() {
                         className="font-mono text-sm cursor-pointer select-all"
                         onClick={() => selectAllText('verify-token-input')}
                         onFocus={(e) => e.target.select()}
-                        disabled={!config?.webhookVerifyToken} />
-
+                        disabled={!config?.webhookVerifyToken}
+                      />
                     </div>
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() => copyToClipboard(config?.webhookVerifyToken || "", 'token')}
                       disabled={!config?.webhookVerifyToken}
-                      title="Copiar Token">
-
+                      title="Copiar Token"
+                    >
                       {copiedToken ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setShowTokenDialog(true)}
                       disabled={!config?.webhookVerifyToken}
-                      title="Ver en cuadro grande">
-
+                      title="Ver en cuadro grande"
+                    >
                       Ver
                     </Button>
                   </div>
@@ -702,9 +701,9 @@ export default function ConfiguracionPage() {
                   <Alert>
                     <AlertDescription>
                       <ol className="list-decimal list-inside space-y-2 text-sm">
-                        {webhookInfo?.instructions.map((instruction, index) =>
-                        <li key={index}>{instruction}</li>
-                        )}
+                        {webhookInfo?.instructions.map((instruction, index) => (
+                          <li key={index}>{instruction}</li>
+                        ))}
                       </ol>
                     </AlertDescription>
                   </Alert>
@@ -714,8 +713,8 @@ export default function ConfiguracionPage() {
                   <Button
                     variant="outline"
                     onClick={() => window.open('https://developers.facebook.com/apps', '_blank')}
-                    className="w-full">
-
+                    className="w-full"
+                  >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Abrir Meta Developer Console
                   </Button>
@@ -780,23 +779,23 @@ export default function ConfiguracionPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setAutoRefresh(!autoRefresh)}>
-
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
                       {autoRefresh ? 'Pausar' : 'Reanudar'}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => fetchWebhookEvents()}
-                      disabled={loadingEvents}>
-
+                      disabled={loadingEvents}
+                    >
                       <RefreshCw className={`h-4 w-4 ${loadingEvents ? 'animate-spin' : ''}`} />
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={handleClearLogs}>
-
+                      onClick={handleClearLogs}
+                    >
                       Limpiar Logs
                     </Button>
                   </div>
@@ -856,13 +855,13 @@ export default function ConfiguracionPage() {
                   </Card>
                 </div>
 
-                {loadingEvents && webhookEvents.length === 0 ?
-                <div className="text-center py-8">
+                {loadingEvents && webhookEvents.length === 0 ? (
+                  <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
                     <p className="text-sm text-muted-foreground">Cargando eventos...</p>
-                  </div> :
-                webhookEvents.length === 0 ?
-                <Alert>
+                  </div>
+                ) : webhookEvents.length === 0 ? (
+                  <Alert>
                     <AlertDescription className="text-center">
                       <Webhook className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       <p className="font-medium">No se han recibido eventos del webhook aún</p>
@@ -870,11 +869,11 @@ export default function ConfiguracionPage() {
                         Los eventos aparecerán aquí cuando Meta envíe actualizaciones a tu webhook
                       </p>
                     </AlertDescription>
-                  </Alert> :
-
-                <div className="space-y-2">
-                    {webhookEvents.map((event) =>
-                  <Card key={event.id} className={`${!event.processed || event.errorMessage ? 'border-red-200 dark:border-red-900' : ''}`}>
+                  </Alert>
+                ) : (
+                  <div className="space-y-2">
+                    {webhookEvents.map((event) => (
+                      <Card key={event.id} className={`${!event.processed || event.errorMessage ? 'border-red-200 dark:border-red-900' : ''}`}>
                         <CardContent className="pt-6">
                           <div className="flex items-start gap-4">
                             <div className="mt-1">
@@ -886,46 +885,46 @@ export default function ConfiguracionPage() {
                                   <Badge variant={getEventBadgeVariant(event.eventType, event.processed)}>
                                     {event.eventType}
                                   </Badge>
-                                  {event.status &&
-                              <Badge variant="outline">{event.status}</Badge>
-                              }
-                                  {event.processed ?
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                  {event.status && (
+                                    <Badge variant="outline">{event.status}</Badge>
+                                  )}
+                                  {event.processed ? (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                                       ✓ Procesado
-                                    </Badge> :
-
-                              <Badge variant="destructive">
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="destructive">
                                       ✗ No procesado
                                     </Badge>
-                              }
+                                  )}
                                 </div>
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {formatTimestamp(event.createdAt)}
                                 </span>
                               </div>
-                              
-                              {event.messageId &&
-                          <p className="text-sm">
+
+                              {event.messageId && (
+                                <p className="text-sm">
                                   <span className="font-medium">ID del Mensaje:</span>{' '}
                                   <code className="text-xs bg-muted px-1 py-0.5 rounded">{event.messageId}</code>
                                 </p>
-                          }
-                              
-                              {event.phoneNumber &&
-                          <p className="text-sm">
+                              )}
+
+                              {event.phoneNumber && (
+                                <p className="text-sm">
                                   <span className="font-medium">Teléfono:</span> {event.phoneNumber}
                                 </p>
-                          }
-                              
-                              {event.errorMessage &&
-                          <Alert variant="destructive" className="py-2">
+                              )}
+
+                              {event.errorMessage && (
+                                <Alert variant="destructive" className="py-2">
                                   <AlertDescription className="text-xs">
                                     <strong>Error:</strong> {event.errorMessage}
                                   </AlertDescription>
                                 </Alert>
-                          }
-                              
+                              )}
+
                               <details className="text-xs">
                                 <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                                   Ver payload completo
@@ -938,17 +937,17 @@ export default function ConfiguracionPage() {
                           </div>
                         </CardContent>
                       </Card>
-                  )}
+                    ))}
                   </div>
-                }
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </main>
 
-      {showUrlDialog &&
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUrlDialog(false)}>
+      {showUrlDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUrlDialog(false)}>
           <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">URL del Webhook</h3>
@@ -960,28 +959,28 @@ export default function ConfiguracionPage() {
               Selecciona todo el texto y copia con <strong>Ctrl+C</strong> (Windows/Linux) o <strong>Cmd+C</strong> (Mac)
             </p>
             <textarea
-            readOnly
-            value={webhookInfo?.webhookUrl || ""}
-            className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
-            onClick={(e) => {
-              e.currentTarget.select();
-              toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar");
-            }}
-            onFocus={(e) => e.target.select()} />
-
+              readOnly
+              value={webhookInfo?.webhookUrl || ""}
+              className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
+              onClick={(e) => {
+                e.currentTarget.select();
+                toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar");
+              }}
+              onFocus={(e) => e.target.select()}
+            />
             <div className="flex gap-2 mt-4">
               <Button
-              className="flex-1"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(webhookInfo?.webhookUrl || "");
-                  toast.success("✅ Copiado!");
-                  setShowUrlDialog(false);
-                } catch (err) {
-                  toast.error("Selecciona el texto y presiona Ctrl+C");
-                }
-              }}>
-
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(webhookInfo?.webhookUrl || "");
+                    toast.success("✅ Copiado!");
+                    setShowUrlDialog(false);
+                  } catch (err) {
+                    toast.error("Selecciona el texto y presiona Ctrl+C");
+                  }
+                }}
+              >
                 Copiar al Portapapeles
               </Button>
               <Button variant="outline" onClick={() => setShowUrlDialog(false)}>
@@ -990,10 +989,10 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         </div>
-      }
+      )}
 
-      {showTokenDialog &&
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTokenDialog(false)}>
+      {showTokenDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTokenDialog(false)}>
           <div className="bg-background border rounded-lg shadow-lg max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Verify Token</h3>
@@ -1005,28 +1004,28 @@ export default function ConfiguracionPage() {
               Selecciona todo el texto y copia con <strong>Ctrl+C</strong> (Windows/Linux) o <strong>Cmd+C</strong> (Mac)
             </p>
             <textarea
-            readOnly
-            value={config?.webhookVerifyToken || ""}
-            className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
-            onClick={(e) => {
-              e.currentTarget.select();
-              toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar");
-            }}
-            onFocus={(e) => e.target.select()} />
-
+              readOnly
+              value={config?.webhookVerifyToken || ""}
+              className="w-full h-32 p-4 border rounded-lg font-mono text-sm resize-none select-all"
+              onClick={(e) => {
+                e.currentTarget.select();
+                toast.info("✏️ Texto seleccionado. Presiona Ctrl+C para copiar");
+              }}
+              onFocus={(e) => e.target.select()}
+            />
             <div className="flex gap-2 mt-4">
               <Button
-              className="flex-1"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(config?.webhookVerifyToken || "");
-                  toast.success("✅ Copiado!");
-                  setShowTokenDialog(false);
-                } catch (err) {
-                  toast.error("Selecciona el texto y presiona Ctrl+C");
-                }
-              }}>
-
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(config?.webhookVerifyToken || "");
+                    toast.success("✅ Copiado!");
+                    setShowTokenDialog(false);
+                  } catch (err) {
+                    toast.error("Selecciona el texto y presiona Ctrl+C");
+                  }
+                }}
+              >
                 Copiar al Portapapeles
               </Button>
               <Button variant="outline" onClick={() => setShowTokenDialog(false)}>
@@ -1035,7 +1034,7 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         </div>
-      }
-    </div>);
-
+      )}
+    </div>
+  );
 }
