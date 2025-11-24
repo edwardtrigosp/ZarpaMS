@@ -407,7 +407,7 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background !w-[58px] !h-full">
       <main className="container mx-auto px-4 py-8 !max-w-[687px] !w-0 !h-0">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Configuración</h2>
