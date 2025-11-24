@@ -3,8 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import Image from "next/image"
-import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight } from "lucide-react"
+import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -52,24 +51,12 @@ export const Sidebar = () => {
         <div className="flex h-16 items-center border-b px-4">
           {!collapsed && (
             <div className="flex items-center gap-2">
-              <Image 
-                src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-message-bu-5f227ab7-20251124130431.jpg"
-                alt="Zarpa MS"
-                width={32}
-                height={32}
-                className="h-8 w-8"
-              />
+              <MessageSquare className="h-8 w-8 text-sidebar-primary" />
               <span className="font-bold text-sidebar-foreground">Zarpa MS</span>
             </div>
           )}
           {collapsed && (
-            <Image 
-              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-message-bu-5f227ab7-20251124130431.jpg"
-              alt="Zarpa MS"
-              width={32}
-              height={32}
-              className="h-8 w-8 mx-auto"
-            />
+            <MessageSquare className="h-8 w-8 text-sidebar-primary mx-auto" />
           )}
         </div>
 
