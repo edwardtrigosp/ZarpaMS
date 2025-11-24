@@ -1,71 +1,71 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
-  {
-    icon: LayoutDashboard,
-    label: "Dashboard",
-    href: "/",
-  },
-  {
-    icon: FileText,
-    label: "Plantillas",
-    href: "/templates",
-  },
-  {
-    icon: Send,
-    label: "Mensajes",
-    href: "/messages",
-  },
-  {
-    icon: History,
-    label: "Historial",
-    href: "/history",
-  },
-  {
-    icon: Settings,
-    label: "Configuración",
-    href: "/configuracion",
-  },
-]
+{
+  icon: LayoutDashboard,
+  label: "Dashboard",
+  href: "/"
+},
+{
+  icon: FileText,
+  label: "Plantillas",
+  href: "/templates"
+},
+{
+  icon: Send,
+  label: "Mensajes",
+  href: "/messages"
+},
+{
+  icon: History,
+  label: "Historial",
+  href: "/history"
+},
+{
+  icon: Settings,
+  label: "Configuración",
+  href: "/configuracion"
+}];
+
 
 export const Sidebar = () => {
-  const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen border-r bg-sidebar transition-all duration-300",
         collapsed ? "w-16" : "w-64"
-      )}
-    >
+      )}>
+
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="flex h-16 items-center border-b px-4">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
+          {!collapsed &&
+          <div className="flex items-center gap-2">
               <MessageSquare className="h-8 w-8 text-sidebar-primary" />
               <span className="font-bold text-sidebar-foreground">Zarpa MS</span>
             </div>
-          )}
-          {collapsed && (
-            <MessageSquare className="h-8 w-8 text-sidebar-primary mx-auto" />
-          )}
+          }
+          {collapsed &&
+          <MessageSquare className="h-8 w-8 text-sidebar-primary mx-auto" />
+          }
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2">
+        <nav className="flex-1 space-y-1 p-2 !w-full !h-[411px]">
           {menuItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
-            
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+
             return (
               <Link key={item.href} href={item.href}>
                 <Button
@@ -75,13 +75,13 @@ export const Sidebar = () => {
                     isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
                     collapsed && "justify-center px-2"
                   )}
-                  title={collapsed ? item.label : undefined}
-                >
+                  title={collapsed ? item.label : undefined}>
+
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </Button>
-              </Link>
-            )
+              </Link>);
+
           })}
         </nav>
 
@@ -93,19 +93,19 @@ export const Sidebar = () => {
               "w-full justify-start gap-3",
               collapsed && "justify-center px-2"
             )}
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <>
+            onClick={() => setCollapsed(!collapsed)}>
+
+            {collapsed ?
+            <ChevronRight className="h-5 w-5" /> :
+
+            <>
                 <ChevronLeft className="h-5 w-5" />
                 <span>Colapsar</span>
               </>
-            )}
+            }
           </Button>
         </div>
       </div>
-    </aside>
-  )
-}
+    </aside>);
+
+};
