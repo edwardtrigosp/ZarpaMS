@@ -53,22 +53,22 @@ export const Sidebar = () => {
           {!collapsed && (
             <div className="flex items-center gap-2">
               <Image 
-                src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-a-message--089107c8-20251124130313.jpg"
+                src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-message-bu-5f227ab7-20251124130431.jpg"
                 alt="Zarpa MS"
-                width={24}
-                height={24}
-                className="h-6 w-6"
+                width={32}
+                height={32}
+                className="h-8 w-8"
               />
               <span className="font-bold text-sidebar-foreground">Zarpa MS</span>
             </div>
           )}
           {collapsed && (
             <Image 
-              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-a-message--089107c8-20251124130313.jpg"
+              src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/2916233b-39a6-435e-86fe-5d07189f92f7/generated_images/minimalist-tiger-head-icon-in-message-bu-5f227ab7-20251124130431.jpg"
               alt="Zarpa MS"
-              width={24}
-              height={24}
-              className="h-6 w-6 mx-auto"
+              width={32}
+              height={32}
+              className="h-8 w-8 mx-auto"
             />
           )}
         </div>
