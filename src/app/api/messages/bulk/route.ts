@@ -24,6 +24,7 @@ async function sendWhatsAppMessage(
   phoneNumber: string,
   messageContent: string,
   templateName: string,
+  templateLanguage: string,
   variables: Record<string, string> | undefined,
   config: any
 ) {
@@ -54,7 +55,7 @@ async function sendWhatsAppMessage(
       template: {
         name: templateName,
         language: {
-          code: "es_MX" // Spanish Mexico
+          code: templateLanguage || "en_US"
         },
         components: components.length > 0 ? components : undefined
       }
@@ -63,6 +64,7 @@ async function sendWhatsAppMessage(
     console.log('📤 Sending WhatsApp message:', {
       to: phoneNumber,
       template: templateName,
+      language: templateLanguage,
       hasVariables: !!variables
     });
 
@@ -327,6 +329,7 @@ export async function POST(request: NextRequest) {
           phoneNumber,
           messageContent,
           templateData.name,
+          templateData.language || "en_US",
           variables,
           config
         );

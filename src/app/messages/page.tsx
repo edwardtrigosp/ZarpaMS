@@ -15,7 +15,15 @@ import { toast } from "sonner"
 // ✅ Get API key from localStorage
 const getApiKey = () => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('api_key') || '';
+    // Auto-configure API key if not set
+    const apiKey = localStorage.getItem('api_key');
+    if (!apiKey) {
+      // Use a default API key for development
+      const defaultKey = '123456789';
+      localStorage.setItem('api_key', defaultKey);
+      return defaultKey;
+    }
+    return apiKey;
   }
   return '';
 };
