@@ -44,6 +44,14 @@ const getFetchHeaders = () => {
   };
 };
 
+// ✅ Helper function to normalize phone numbers
+const normalizePhoneNumber = (phone: string): string => {
+  // Remove any whitespace
+  const cleaned = phone.trim()
+  // Add + if it doesn't start with one
+  return cleaned.startsWith('+') ? cleaned : `+${cleaned}`
+}
+
 interface Template {
   id: number
   name: string
@@ -141,7 +149,7 @@ export default function MessagesPage() {
               results.data.forEach((row: any) => {
                 if (row.phoneNumber) {
                   const contact: Contact = {
-                    phoneNumber: row.phoneNumber,
+                    phoneNumber: normalizePhoneNumber(row.phoneNumber),
                     name: row.name || undefined,
                   }
 
@@ -163,7 +171,7 @@ export default function MessagesPage() {
               setContacts(parsed)
               setCurrentStep(2)
               toast.success(`✅ ${parsed.length} contactos cargados desde Excel`, {
-                description: "Archivo convertido y listo para enviar"
+                description: "Números normalizados y listos para enviar"
               })
             },
             error: (error) => {
@@ -196,7 +204,7 @@ export default function MessagesPage() {
           results.data.forEach((row: any) => {
             if (row.phoneNumber) {
               const contact: Contact = {
-                phoneNumber: row.phoneNumber,
+                phoneNumber: normalizePhoneNumber(row.phoneNumber),
                 name: row.name || undefined,
               }
 
@@ -218,7 +226,7 @@ export default function MessagesPage() {
           setContacts(parsed)
           setCurrentStep(2)
           toast.success(`✅ ${parsed.length} contactos cargados`, {
-            description: "Listo para enviar"
+            description: "Números normalizados y listos para enviar"
           })
         },
         error: (error) => {
@@ -236,11 +244,6 @@ export default function MessagesPage() {
       return
     }
 
-    if (!testPhone.startsWith("+")) {
-      toast.error("El número debe incluir código de país (+52...)")
-      return
-    }
-
     const missingVars = selectedTemplate.variables.filter(v => !testVariables[v])
     if (missingVars.length > 0) {
       toast.error(`Completa las variables: ${missingVars.join(", ")}`)
@@ -250,10 +253,12 @@ export default function MessagesPage() {
     setSendingTest(true)
 
     try {
+      const normalizedPhone = normalizePhoneNumber(testPhone)
+      
       const payload = {
         templateId: selectedTemplate.id,
         contacts: [{
-          phoneNumber: testPhone,
+          phoneNumber: normalizedPhone,
           name: testName || undefined,
           variables: Object.keys(testVariables).length > 0 ? testVariables : undefined
         }]
@@ -267,7 +272,7 @@ export default function MessagesPage() {
 
       if (res.ok) {
         toast.success("✅ Mensaje de prueba enviado", {
-          description: `Enviado a ${testPhone}`,
+          description: `Enviado a ${normalizedPhone}`,
           action: {
             label: "Ver Webhook",
             onClick: () => router.push("/?tab=webhook")
@@ -299,14 +304,6 @@ export default function MessagesPage() {
 
     if (contacts.length === 0) {
       toast.error("Carga contactos desde un archivo CSV")
-      return
-    }
-
-    const invalidNumbers = contacts.filter(c => !c.phoneNumber.startsWith("+"))
-    if (invalidNumbers.length > 0) {
-      toast.error("Números inválidos", {
-        description: `${invalidNumbers.length} números sin código de país`
-      })
       return
     }
 
@@ -452,10 +449,13 @@ export default function MessagesPage() {
                     <Input
                       id="test-phone"
                       type="tel"
-                      placeholder="+5215551234567"
+                      placeholder="5215551234567"
                       value={testPhone}
                       onChange={(e) => setTestPhone(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Con código de país (+ opcional)
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -737,7 +737,7 @@ export default function MessagesPage() {
             <CardContent className="text-sm space-y-2">
               <p><strong>Columnas requeridas:</strong></p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">phoneNumber</code> - Con código de país (+52)</li>
+                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">phoneNumber</code> - Con código de país (+ se agrega automáticamente)</li>
                 <li><code className="text-xs bg-muted px-1 py-0.5 rounded">name</code> - Nombre del contacto (opcional)</li>
               </ul>
               <p className="pt-2"><strong>Variables adicionales:</strong></p>
