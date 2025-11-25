@@ -276,43 +276,40 @@ export default function MessagesPage() {
 
   const downloadSampleCSV = () => {
     try {
-      let sampleData: string
-      
-      if (selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0) {
-        const headers = ['phoneNumber', 'name', ...selectedTemplate.variables]
-        const headerRow = headers.join(',')
-        
-        const sampleRows = [
-          `+5215551234567,Juan Pérez,${selectedTemplate.variables.map((v, i) => `Valor ${i + 1}`).join(',')}`,
-          `+5215559876543,María García,${selectedTemplate.variables.map((v, i) => `Valor ${i + 1}`).join(',')}`,
-          `+5215552468135,Carlos López,${selectedTemplate.variables.map((v, i) => `Valor ${i + 1}`).join(',')}`
-        ]
-        
-        sampleData = [headerRow, ...sampleRows].join('\n')
-      } else {
-        sampleData = `phoneNumber,name
-+5215551234567,Juan Pérez
-+5215559876543,María García
-+5215552468135,Carlos López`
+      if (!selectedTemplate) {
+        toast.error("Selecciona una plantilla primero")
+        return
       }
 
-      const blob = new Blob(["\uFEFF" + sampleData], { type: "text/csv;charset=utf-8;" })
-      const url = URL.createObjectURL(blob)
+      const variables = selectedTemplate.variables || []
+      const params = new URLSearchParams({
+        templateName: selectedTemplate.name,
+        variables: JSON.stringify(variables)
+      })
+
+      // Use API route to generate and download CSV
+      const downloadUrl = `/api/messages/sample-csv?${params.toString()}`
       
-      const link = document.createElement("a")
-      link.setAttribute("href", url)
-      link.setAttribute("download", selectedTemplate 
-        ? `ejemplo_${selectedTemplate.name.toLowerCase().replace(/\s+/g, '_')}.csv`
-        : "ejemplo_contactos.csv")
+      // Check if we're in an iframe
+      const isInIframe = window.self !== window.top
       
-      link.style.visibility = "hidden"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      if (isInIframe) {
+        // Open in new tab if in iframe
+        window.open(downloadUrl, '_blank')
+      } else {
+        // Direct download using hidden link
+        const link = document.createElement("a")
+        link.href = downloadUrl
+        link.download = `ejemplo_${selectedTemplate.name.toLowerCase().replace(/\s+/g, '_')}.csv`
+        link.style.display = "none"
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
       
       toast.success("✅ CSV de ejemplo descargado")
     } catch (error) {
+      console.error("Error downloading CSV:", error)
       toast.error("Error al descargar CSV")
     }
   }
