@@ -435,15 +435,46 @@ export default function ConfiguracionPage() {
                         : "Tus credenciales están configuradas y guardadas de forma segura"}
                     </CardDescription>
                   </div>
-                  {!isEditingCredentials && config && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditingCredentials(true)}
-                    >
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Editar Credenciales
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {!isEditingCredentials && config && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            const loadingToast = toast.loading("Sincronizando plantillas desde Meta...");
+                            try {
+                              const res = await fetch("/api/whatsapp/sync-templates", {
+                                headers: getFetchHeaders()
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                toast.success(`✅ ${data.synced} plantilla(s) sincronizada(s)`, {
+                                  description: data.templates?.map((t: any) => t.name).join(", ") || "Plantillas actualizadas"
+                                });
+                              } else {
+                                const data = await res.json();
+                                toast.error(data.error || "Error al sincronizar");
+                              }
+                            } catch (err) {
+                              toast.error("Error de conexión");
+                            } finally {
+                              toast.dismiss(loadingToast);
+                            }
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Sincronizar Plantillas
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsEditingCredentials(true)}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Editar Credenciales
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
