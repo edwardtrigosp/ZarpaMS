@@ -360,25 +360,22 @@ export default function MessagesPage() {
         variables: JSON.stringify(variables)
       })
 
-      // Use API route to generate and download CSV
       const downloadUrl = `/api/messages/sample-csv?${params.toString()}`
+      const fileName = `ejemplo_${selectedTemplate.name.toLowerCase().replace(/\s+/g, '_')}.csv`
       
-      // Check if we're in an iframe
-      const isInIframe = window.self !== window.top
+      // Create hidden link for download (works in iframe and normal context)
+      const link = document.createElement("a")
+      link.href = downloadUrl
+      link.download = fileName
+      link.target = "_blank"
+      link.style.display = "none"
+      document.body.appendChild(link)
+      link.click()
       
-      if (isInIframe) {
-        // Open in new tab if in iframe
-        window.open(downloadUrl, '_blank')
-      } else {
-        // Direct download using hidden link
-        const link = document.createElement("a")
-        link.href = downloadUrl
-        link.download = `ejemplo_${selectedTemplate.name.toLowerCase().replace(/\s+/g, '_')}.csv`
-        link.style.display = "none"
-        document.body.appendChild(link)
-        link.click()
+      // Clean up after a short delay
+      setTimeout(() => {
         document.body.removeChild(link)
-      }
+      }, 100)
       
       toast.success("✅ CSV de ejemplo descargado")
     } catch (error) {
