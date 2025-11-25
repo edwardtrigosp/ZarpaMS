@@ -7,18 +7,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Upload, Send, CheckCircle2, Info, Zap } from "lucide-react"
+import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Papa from "papaparse"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 // ✅ Get API key from localStorage
 const getApiKey = () => {
   if (typeof window !== 'undefined') {
-    // Auto-configure API key if not set
     const apiKey = localStorage.getItem('api_key');
     if (!apiKey) {
-      // Use a default API key for development
       const defaultKey = '123456789';
       localStorage.setItem('api_key', defaultKey);
       return defaultKey;
@@ -59,10 +65,10 @@ export default function MessagesPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
-  const [scheduledDate, setScheduledDate] = useState("")
+  const [currentStep, setCurrentStep] = useState(1)
   
-  // Test message state
-  const [testTemplate, setTestTemplate] = useState<Template | null>(null)
+  // Test message dialog state
+  const [testDialogOpen, setTestDialogOpen] = useState(false)
   const [testPhone, setTestPhone] = useState("")
   const [testName, setTestName] = useState("")
   const [testVariables, setTestVariables] = useState<Record<string, string>>({})
@@ -71,9 +77,7 @@ export default function MessagesPage() {
   useEffect(() => {
     const apiKey = getApiKey();
     if (!apiKey) {
-      toast.error("API Key no configurada", {
-        description: "Configura tu API Key en el Dashboard primero"
-      });
+      toast.error("API Key no configurada");
     } else {
       fetchTemplates();
     }
@@ -86,7 +90,6 @@ export default function MessagesPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        // Parse variables field if it's a JSON string
         const parsedData = data.map((template: Template) => ({
           ...template,
           variables: typeof template.variables === 'string' 
@@ -96,16 +99,6 @@ export default function MessagesPage() {
               : []
         }))
         setTemplates(parsedData)
-        
-        if (parsedData.length > 0) {
-          toast.success(`${parsedData.length} plantillas aprobadas cargadas`)
-        } else {
-          toast.info("No hay plantillas aprobadas. Ve a Plantillas para crear una.")
-        }
-      } else if (res.status === 401) {
-        toast.error("API Key inválida", {
-          description: "Verifica tu API Key en el Dashboard"
-        });
       }
     } catch (err) {
       console.error("Error fetching templates:", err)
@@ -132,7 +125,6 @@ export default function MessagesPage() {
               name: row.name || undefined,
             }
 
-            // Extract variable columns
             const variables: Record<string, string> = {}
             Object.keys(row).forEach((key) => {
               if (key !== "phoneNumber" && key !== "name" && row[key]) {
@@ -149,8 +141,9 @@ export default function MessagesPage() {
         })
 
         setContacts(parsed)
-        toast.success(`✅ ${parsed.length} contactos cargados exitosamente`, {
-          description: `Se procesaron ${parsed.length} contactos del archivo CSV`
+        setCurrentStep(2)
+        toast.success(`✅ ${parsed.length} contactos cargados`, {
+          description: "Listo para enviar"
         })
       },
       error: (error) => {
@@ -162,14 +155,8 @@ export default function MessagesPage() {
   }
 
   const handleSendTestMessage = async () => {
-    // Validaciones
-    if (!testTemplate) {
-      toast.error("Selecciona una plantilla para la prueba")
-      return
-    }
-
-    if (!testPhone) {
-      toast.error("Ingresa un número de teléfono")
+    if (!selectedTemplate || !testPhone) {
+      toast.error("Completa todos los campos requeridos")
       return
     }
 
@@ -178,22 +165,17 @@ export default function MessagesPage() {
       return
     }
 
-    // Validar que todas las variables requeridas estén llenas
-    const missingVars = testTemplate.variables.filter(v => !testVariables[v])
+    const missingVars = selectedTemplate.variables.filter(v => !testVariables[v])
     if (missingVars.length > 0) {
       toast.error(`Completa las variables: ${missingVars.join(", ")}`)
       return
     }
 
     setSendingTest(true)
-    
-    const loadingToast = toast.loading("Enviando mensaje de prueba...", {
-      description: `A: ${testPhone}`
-    })
 
     try {
       const payload = {
-        templateId: testTemplate.id,
+        templateId: selectedTemplate.id,
         contacts: [{
           phoneNumber: testPhone,
           name: testName || undefined,
@@ -208,77 +190,56 @@ export default function MessagesPage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
         toast.success("✅ Mensaje de prueba enviado", {
-          description: `Mensaje enviado a ${testPhone}. Haz clic abajo para ver el webhook.`,
-          duration: 8000,
+          description: `Enviado a ${testPhone}`,
           action: {
             label: "Ver Webhook",
-            onClick: () => {
-              router.push("/?tab=webhook")
-            }
+            onClick: () => router.push("/?tab=webhook")
           }
         })
         
-        // Limpiar formulario de prueba
         setTestPhone("")
         setTestName("")
         setTestVariables({})
+        setTestDialogOpen(false)
       } else {
         const data = await res.json()
-        toast.error("Error al enviar mensaje de prueba", {
-          description: data.error || "Ocurrió un error inesperado"
+        toast.error("Error al enviar mensaje", {
+          description: data.error || "Ocurrió un error"
         })
       }
     } catch (err) {
-      toast.error("Error de conexión", {
-        description: "No se pudo conectar con el servidor"
-      })
+      toast.error("Error de conexión")
     } finally {
-      toast.dismiss(loadingToast)
       setSendingTest(false)
     }
   }
 
   const handleSendMessages = async () => {
-    // Validaciones
     if (!selectedTemplate) {
-      toast.error("Selecciona una plantilla", {
-        description: "Debes elegir una plantilla aprobada antes de enviar mensajes"
-      })
+      toast.error("Selecciona una plantilla")
       return
     }
 
     if (contacts.length === 0) {
-      toast.error("Carga contactos desde un archivo CSV", {
-        description: "Necesitas subir un archivo CSV con al menos un contacto"
-      })
+      toast.error("Carga contactos desde un archivo CSV")
       return
     }
 
-    // Validar que los números tengan el formato correcto
     const invalidNumbers = contacts.filter(c => !c.phoneNumber.startsWith("+"))
     if (invalidNumbers.length > 0) {
-      toast.error("Números de teléfono inválidos", {
-        description: `${invalidNumbers.length} números no incluyen código de país (+52...)`
+      toast.error("Números inválidos", {
+        description: `${invalidNumbers.length} números sin código de país`
       })
       return
     }
 
     setLoading(true)
-    
-    const loadingToast = toast.loading(
-      scheduledDate ? "Programando mensajes..." : "Enviando mensajes...", 
-      {
-        description: `Procesando ${contacts.length} contactos`
-      }
-    )
 
     try {
       const payload = {
         templateId: selectedTemplate.id,
         contacts,
-        scheduledAt: scheduledDate || undefined,
       }
 
       const res = await fetch("/api/messages/bulk", {
@@ -289,34 +250,26 @@ export default function MessagesPage() {
 
       if (res.ok) {
         const data = await res.json()
-        toast.success(
-          scheduledDate ? "🗓️ Mensajes programados exitosamente" : "📤 Mensajes enviados exitosamente",
-          {
-            description: `${data.messageCount} mensajes ${scheduledDate ? "programados para " + new Date(scheduledDate).toLocaleString('es-MX') : "guardados en el historial"}`,
-            duration: 5000
-          }
-        )
+        toast.success("📤 Mensajes enviados exitosamente", {
+          description: `${data.messageCount} mensajes enviados`,
+          duration: 5000
+        })
         
-        // Limpiar formulario
         setContacts([])
         setCsvFile(null)
-        setScheduledDate("")
+        setCurrentStep(1)
         
-        // Resetear el input de archivo
         const fileInput = document.getElementById("csv-file") as HTMLInputElement
         if (fileInput) fileInput.value = ""
       } else {
         const data = await res.json()
         toast.error("Error al enviar mensajes", {
-          description: data.error || "Ocurrió un error inesperado"
+          description: data.error || "Ocurrió un error"
         })
       }
     } catch (err) {
-      toast.error("Error de conexión", {
-        description: "No se pudo conectar con el servidor"
-      })
+      toast.error("Error de conexión")
     } finally {
-      toast.dismiss(loadingToast)
       setLoading(false)
     }
   }
@@ -326,11 +279,9 @@ export default function MessagesPage() {
       let sampleData: string
       
       if (selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0) {
-        // Generate CSV based on selected template variables
         const headers = ['phoneNumber', 'name', ...selectedTemplate.variables]
         const headerRow = headers.join(',')
         
-        // Generate sample rows with example data for each variable
         const sampleRows = [
           `+5215551234567,Juan Pérez,${selectedTemplate.variables.map((v, i) => `Valor ${i + 1}`).join(',')}`,
           `+5215559876543,María García,${selectedTemplate.variables.map((v, i) => `Valor ${i + 1}`).join(',')}`,
@@ -339,412 +290,403 @@ export default function MessagesPage() {
         
         sampleData = [headerRow, ...sampleRows].join('\n')
       } else {
-        // Default generic CSV
-        sampleData = `phoneNumber,name,date,time,discount
-+5215551234567,Juan Pérez,25 de enero,10:00 AM,20%
-+5215559876543,María García,26 de enero,2:30 PM,15%
-+5215552468135,Carlos López,27 de enero,4:00 PM,25%`
+        sampleData = `phoneNumber,name
++5215551234567,Juan Pérez
++5215559876543,María García
++5215552468135,Carlos López`
       }
 
-      // Add BOM for UTF-8 encoding
       const blob = new Blob(["\uFEFF" + sampleData], { type: "text/csv;charset=utf-8;" })
       const url = URL.createObjectURL(blob)
       
-      // Create download link
       const link = document.createElement("a")
       link.setAttribute("href", url)
       link.setAttribute("download", selectedTemplate 
         ? `ejemplo_${selectedTemplate.name.toLowerCase().replace(/\s+/g, '_')}.csv`
         : "ejemplo_contactos.csv")
       
-      // Required for Firefox
       link.style.visibility = "hidden"
       document.body.appendChild(link)
-      
-      // Trigger download
       link.click()
-      
-      // Cleanup
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
       
-      toast.success("✅ CSV de ejemplo descargado", {
-        description: "Revisa tu carpeta de Descargas. Edita el archivo con tus datos reales antes de subirlo"
-      })
-      
-      console.log("CSV download triggered successfully")
+      toast.success("✅ CSV de ejemplo descargado")
     } catch (error) {
-      console.error("Error downloading CSV:", error)
-      toast.error("Error al descargar CSV", {
-        description: "Intenta nuevamente o verifica los permisos del navegador"
-      })
+      toast.error("Error al descargar CSV")
     }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Envío Masivo de Mensajes</h2>
-          <p className="text-muted-foreground">
-            Envía mensajes a múltiples contactos usando tus plantillas aprobadas
-          </p>
-        </div>
-
-        {/* Test Message Card */}
-        <Card className="mb-6 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-900 dark:text-yellow-400">
-              <Zap className="h-6 w-6" />
-              ⚡ Envío de Prueba Rápido
-            </CardTitle>
-            <CardDescription>
-              Envía un mensaje de prueba a un solo número sin necesidad de subir CSV
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="test-template">Plantilla</Label>
-                <Select
-                  value={testTemplate?.id.toString()}
-                  onValueChange={(value) => {
-                    const template = templates.find((t) => t.id.toString() === value)
-                    setTestTemplate(template || null)
-                    // Inicializar variables vacías
-                    if (template && template.variables) {
-                      const newVars: Record<string, string> = {}
-                      template.variables.forEach(v => newVars[v] = "")
-                      setTestVariables(newVars)
-                    }
-                  }}
-                >
-                  <SelectTrigger id="test-template">
-                    <SelectValue placeholder="Selecciona una plantilla" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="test-phone">Número de Teléfono *</Label>
-                <Input
-                  id="test-phone"
-                  type="tel"
-                  placeholder="+5215551234567"
-                  value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="test-name">Nombre (Opcional)</Label>
-                <Input
-                  id="test-name"
-                  placeholder="Juan Pérez"
-                  value={testName}
-                  onChange={(e) => setTestName(e.target.value)}
-                />
-              </div>
-
-              {/* Variables dinámicas */}
-              {testTemplate && testTemplate.variables && testTemplate.variables.length > 0 && (
-                <>
-                  {testTemplate.variables.map((variable) => (
-                    <div key={variable} className="space-y-2">
-                      <Label htmlFor={`test-var-${variable}`}>
-                        Variable: {variable} *
-                      </Label>
-                      <Input
-                        id={`test-var-${variable}`}
-                        placeholder={`Valor para ${variable}`}
-                        value={testVariables[variable] || ""}
-                        onChange={(e) => 
-                          setTestVariables({...testVariables, [variable]: e.target.value})
-                        }
-                      />
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-
-            {testTemplate && (
-              <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border">
-                <p className="text-sm font-medium mb-2">Vista Previa del Mensaje:</p>
-                <p className="text-sm whitespace-pre-wrap">{testTemplate.content}</p>
-              </div>
-            )}
-
-            <Button
-              onClick={handleSendTestMessage}
-              disabled={sendingTest || !testTemplate || !testPhone}
-              className="w-full bg-yellow-600 hover:bg-yellow-700"
-              size="lg"
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              {sendingTest ? "Enviando..." : "Enviar Mensaje de Prueba"}
-            </Button>
-            
-            {(!testTemplate || !testPhone) && (
-              <p className="text-xs text-center text-muted-foreground">
-                {!testTemplate && "→ Selecciona una plantilla primero"}
-                {testTemplate && !testPhone && "→ Ingresa un número de teléfono"}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Tutorial Card */}
-        <Card className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-              <Info className="h-5 w-5" />
-              📝 Guía Rápida - Primer Mensaje
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-2 text-blue-900 dark:text-blue-300">
-            <p><strong>Paso 1:</strong> Selecciona una plantilla aprobada del dropdown</p>
-            <p><strong>Paso 2:</strong> Descarga el CSV de ejemplo y edítalo con tus datos reales</p>
-            <p><strong>Paso 3:</strong> Sube tu archivo CSV con los contactos</p>
-            <p><strong>Paso 4:</strong> Haz clic en "Enviar Mensajes" y revisa el historial</p>
-            <p className="pt-2 border-t border-blue-200 dark:border-blue-800">
-              💡 <strong>Tip:</strong> Los números deben incluir código de país (ej: +5215551234567)
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Envío de Mensajes</h2>
+            <p className="text-muted-foreground">
+              Proceso simple en 2 pasos
             </p>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left Column */}
-          <div className="space-y-6">
-            <Card className={selectedTemplate ? "border-green-500" : ""}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>1. Selecciona una Plantilla</CardTitle>
-                    <CardDescription>
-                      Elige una plantilla aprobada para enviar
-                    </CardDescription>
-                  </div>
-                  {selectedTemplate && (
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  )}
+          </div>
+          
+          {/* Test Message Dialog Trigger */}
+          <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Zap className="h-4 w-4 mr-2" />
+                Envío Rápido
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>⚡ Envío de Prueba Rápido</DialogTitle>
+                <DialogDescription>
+                  Envía un mensaje de prueba a un solo número
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="test-template">Plantilla *</Label>
+                  <Select
+                    value={selectedTemplate?.id.toString()}
+                    onValueChange={(value) => {
+                      const template = templates.find((t) => t.id.toString() === value)
+                      setSelectedTemplate(template || null)
+                      if (template && template.variables) {
+                        const newVars: Record<string, string> = {}
+                        template.variables.forEach(v => newVars[v] = "")
+                        setTestVariables(newVars)
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="test-template">
+                      <SelectValue placeholder="Selecciona una plantilla" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Select
-                  value={selectedTemplate?.id.toString()}
-                  onValueChange={(value) => {
-                    const template = templates.find((t) => t.id.toString() === value)
-                    setSelectedTemplate(template || null)
-                    if (template) {
-                      toast.success(`Plantilla "${template.name}" seleccionada`, {
-                        description: template.variables.length > 0 
-                          ? `Variables: ${template.variables.join(", ")}` 
-                          : "Sin variables"
-                      })
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una plantilla" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name} - {template.category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
 
-                {selectedTemplate && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium mb-2">Vista Previa:</p>
-                    <p className="text-sm whitespace-pre-wrap">{selectedTemplate.content}</p>
-                    {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-xs text-muted-foreground mb-1">Variables:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedTemplate.variables.map((v) => (
-                            <Badge key={v} variant="outline" className="text-xs">
-                              {v}
-                            </Badge>
-                          ))}
-                        </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-phone">Teléfono *</Label>
+                    <Input
+                      id="test-phone"
+                      type="tel"
+                      placeholder="+5215551234567"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="test-name">Nombre</Label>
+                    <Input
+                      id="test-name"
+                      placeholder="Juan Pérez"
+                      value={testName}
+                      onChange={(e) => setTestName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Variables de la plantilla</Label>
+                    {selectedTemplate.variables.map((variable) => (
+                      <div key={variable} className="space-y-2">
+                        <Label htmlFor={`test-var-${variable}`} className="text-sm">
+                          {variable} *
+                        </Label>
+                        <Input
+                          id={`test-var-${variable}`}
+                          placeholder={`Valor para ${variable}`}
+                          value={testVariables[variable] || ""}
+                          onChange={(e) => 
+                            setTestVariables({...testVariables, [variable]: e.target.value})
+                          }
+                        />
                       </div>
-                    )}
+                    ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
 
-            <Card className={contacts.length > 0 ? "border-green-500" : ""}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>2. Carga Contactos (CSV)</CardTitle>
-                    <CardDescription>
-                      Sube un archivo CSV con los números de teléfono
-                    </CardDescription>
-                  </div>
-                  {contacts.length > 0 && (
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="csv-file">Archivo CSV</Label>
-                  <Input
-                    id="csv-file"
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    El CSV debe incluir columnas: phoneNumber, name, y cualquier variable de la plantilla
-                  </p>
-                </div>
-
-                <Button variant="outline" onClick={downloadSampleCSV} className="w-full">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Descargar CSV de Ejemplo
+                <Button
+                  onClick={handleSendTestMessage}
+                  disabled={sendingTest || !selectedTemplate || !testPhone}
+                  className="w-full"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendingTest ? "Enviando..." : "Enviar Prueba"}
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
-                {contacts.length > 0 && (
-                  <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <p className="text-sm font-medium mb-2 text-green-700 dark:text-green-400">
-                      ✅ Contactos Cargados: {contacts.length}
-                    </p>
-                    <div className="max-h-32 overflow-y-auto text-xs space-y-1">
-                      {contacts.slice(0, 5).map((c, i) => (
-                        <div key={i} className="text-green-900 dark:text-green-300">
-                          {c.phoneNumber} {c.name ? `- ${c.name}` : ""}
-                        </div>
+        {/* Progress Steps */}
+        <div className="mb-8 flex items-center justify-center gap-4">
+          <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${currentStep >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+              {currentStep > 1 ? <CheckCircle2 className="h-5 w-5" /> : "1"}
+            </div>
+            <span className="font-medium">Cargar Contactos</span>
+          </div>
+          
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          
+          <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${currentStep >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+              {currentStep > 2 ? <CheckCircle2 className="h-5 w-5" /> : "2"}
+            </div>
+            <span className="font-medium">Enviar Mensajes</span>
+          </div>
+        </div>
+
+        {/* Main Card */}
+        <Card className="shadow-lg">
+          <CardHeader className="border-b bg-muted/50">
+            <CardTitle className="flex items-center gap-2">
+              {currentStep === 1 && (
+                <>
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Paso 1: Carga tu Archivo Excel/CSV
+                </>
+              )}
+              {currentStep === 2 && (
+                <>
+                  <Send className="h-5 w-5" />
+                  Paso 2: Revisa y Envía
+                </>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {currentStep === 1 && "Selecciona una plantilla y sube tu archivo con los contactos"}
+              {currentStep === 2 && "Verifica los datos y envía los mensajes"}
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="p-6">
+            {/* Step 1: Upload */}
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                {/* Template Selection */}
+                <div className="space-y-3">
+                  <Label htmlFor="template-select" className="text-base font-semibold">
+                    1. Selecciona tu Plantilla
+                  </Label>
+                  <Select
+                    value={selectedTemplate?.id.toString()}
+                    onValueChange={(value) => {
+                      const template = templates.find((t) => t.id.toString() === value)
+                      setSelectedTemplate(template || null)
+                      if (template) {
+                        toast.success(`Plantilla "${template.name}" seleccionada`)
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="template-select" className="h-12">
+                      <SelectValue placeholder="Elige una plantilla aprobada" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{template.name}</span>
+                            <Badge variant="outline" className="text-xs">{template.category}</Badge>
+                          </div>
+                        </SelectItem>
                       ))}
-                      {contacts.length > 5 && (
-                        <div className="text-green-600 dark:text-green-500">
-                          ...y {contacts.length - 5} más
+                    </SelectContent>
+                  </Select>
+
+                  {selectedTemplate && (
+                    <div className="p-4 bg-muted rounded-lg space-y-2">
+                      <p className="text-sm font-medium">Vista Previa:</p>
+                      <p className="text-sm whitespace-pre-wrap text-muted-foreground">{selectedTemplate.content}</p>
+                      {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground mb-2">Variables necesarias:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedTemplate.variables.map((v) => (
+                              <Badge key={v} variant="secondary" className="text-xs">
+                                {v}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>3. Opciones de Envío</CardTitle>
-                <CardDescription>
-                  Configura cuándo enviar los mensajes
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="scheduled-date">Programar Envío (Opcional)</Label>
-                  <Input
-                    id="scheduled-date"
-                    type="datetime-local"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Deja vacío para enviar inmediatamente
-                  </p>
+                  )}
                 </div>
 
-                <Button
-                  onClick={handleSendMessages}
-                  disabled={loading || !selectedTemplate || contacts.length === 0}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  size="lg"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {loading ? "Enviando..." : scheduledDate ? "Programar Mensajes" : "Enviar Mensajes"}
-                </Button>
-                
-                {(!selectedTemplate || contacts.length === 0) && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    {!selectedTemplate && "→ Selecciona una plantilla primero"}
-                    {selectedTemplate && contacts.length === 0 && "→ Carga contactos desde CSV"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Info Cards */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Límites de Envío</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Límite Diario:</span>
-                  <Badge>1,000 mensajes</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Límite Pico:</span>
-                  <Badge>10,000 mensajes</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Formato del CSV</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="font-medium mb-1">Columnas Requeridas:</p>
-                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      <li>phoneNumber (formato: +52XXXXXXXXXX)</li>
-                      <li>name (opcional, nombre del contacto)</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-medium mb-1">Columnas Opcionales:</p>
-                    <p className="text-muted-foreground">
-                      Cualquier variable usada en tu plantilla (ej: date, time, discount)
+                {/* Download Example */}
+                {selectedTemplate && (
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">
+                      2. Descarga el Formato de Ejemplo
+                    </Label>
+                    <Button 
+                      onClick={downloadSampleCSV} 
+                      variant="outline" 
+                      className="w-full h-12 border-dashed border-2"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Descargar Archivo de Ejemplo (.csv)
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Edita este archivo con tus datos reales antes de subirlo
                     </p>
                   </div>
-                  <div>
-                    <p className="font-medium mb-1">Ejemplo:</p>
-                    <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">
-{`phoneNumber,name,date,time
-+5215551234567,Juan,25 enero,10:00
-+5215559876543,María,26 enero,14:30`}
-                    </pre>
+                )}
+
+                {/* File Upload */}
+                <div className="space-y-3">
+                  <Label htmlFor="csv-file" className="text-base font-semibold">
+                    3. Sube tu Archivo con Contactos
+                  </Label>
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer bg-muted/30">
+                    <Input
+                      id="csv-file"
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileUpload}
+                      disabled={!selectedTemplate}
+                      className="hidden"
+                    />
+                    <label htmlFor="csv-file" className="cursor-pointer block">
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-sm font-medium mb-1">
+                        {csvFile ? csvFile.name : "Arrastra tu archivo aquí o haz clic para seleccionar"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Formatos: CSV, Excel (.xlsx, .xls)
+                      </p>
+                    </label>
+                  </div>
+                  
+                  {!selectedTemplate && (
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                      <AlertCircle className="h-4 w-4" />
+                      <p className="text-xs">Selecciona una plantilla primero</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Review & Send */}
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-muted-foreground mb-1">Plantilla</p>
+                    <p className="font-semibold">{selectedTemplate?.name}</p>
+                  </div>
+                  <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-muted-foreground mb-1">Total Contactos</p>
+                    <p className="font-semibold text-2xl">{contacts.length}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Consejos de Uso</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>✓ Verifica que los números incluyan el código de país (+52)</li>
-                  <li>✓ Usa plantillas APROBADAS por Meta</li>
-                  <li>✓ Respeta los límites diarios y pico</li>
-                  <li>✓ Programa envíos para evitar sobrecarga</li>
-                  <li>✓ Revisa el historial después del envío</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Contacts Preview */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Vista Previa de Contactos</Label>
+                  <div className="border rounded-lg max-h-48 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 font-medium">#</th>
+                          <th className="text-left p-3 font-medium">Teléfono</th>
+                          <th className="text-left p-3 font-medium">Nombre</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contacts.slice(0, 10).map((c, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="p-3 text-muted-foreground">{i + 1}</td>
+                            <td className="p-3 font-mono text-xs">{c.phoneNumber}</td>
+                            <td className="p-3">{c.name || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {contacts.length > 10 && (
+                      <div className="p-3 bg-muted text-center text-sm text-muted-foreground border-t">
+                        ... y {contacts.length - 10} contactos más
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCurrentStep(1)
+                      setContacts([])
+                      setCsvFile(null)
+                      const fileInput = document.getElementById("csv-file") as HTMLInputElement
+                      if (fileInput) fileInput.value = ""
+                    }}
+                    className="flex-1"
+                  >
+                    Volver a Cargar
+                  </Button>
+                  <Button
+                    onClick={handleSendMessages}
+                    disabled={loading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 h-12 text-base"
+                  >
+                    <Send className="h-5 w-5 mr-2" />
+                    {loading ? "Enviando..." : `Enviar ${contacts.length} Mensajes`}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Info Cards */}
+        <div className="grid md:grid-cols-2 gap-4 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">📋 Formato del Archivo</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2">
+              <p><strong>Columnas requeridas:</strong></p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
+                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">phoneNumber</code> - Con código de país (+52)</li>
+                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">name</code> - Nombre del contacto (opcional)</li>
+              </ul>
+              <p className="pt-2"><strong>Variables adicionales:</strong></p>
+              <p className="text-muted-foreground">Dependen de la plantilla seleccionada</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">⚡ Límites de Envío</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Límite Diario:</span>
+                <Badge variant="secondary">1,000 mensajes</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Límite Pico:</span>
+                <Badge variant="secondary">10,000 mensajes</Badge>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
