@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { messageLogs, messageTemplates, contacts, whatsappConfig } from '@/db/schema';
+import { messageLogs, messageTemplates, contacts, whatsappConfig, rateLimitTracking } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { validateApiKey, sanitizePhoneNumber, sanitizeString, addSecurityHeaders, rateLimit, logSecurityEvent } from '@/lib/security';
 
@@ -366,6 +366,41 @@ export async function POST(request: NextRequest) {
         .returning();
 
       createdMessages.push(messageLog[0]);
+    }
+
+    // ✅ UPDATE RATE LIMIT TRACKING
+    if (sendResults.successful > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check if tracking record exists for today
+      const existingTracking = await db.select()
+        .from(rateLimitTracking)
+        .where(eq(rateLimitTracking.date, today))
+        .limit(1);
+
+      if (existingTracking.length > 0) {
+        // Update existing record
+        await db.update(rateLimitTracking)
+          .set({
+            dailyCount: (existingTracking[0].dailyCount || 0) + sendResults.successful,
+            peakCount: (existingTracking[0].peakCount || 0) + sendResults.successful,
+            lastReset: currentTime
+          })
+          .where(eq(rateLimitTracking.id, existingTracking[0].id));
+        
+        console.log(`✅ Updated rate limit tracking: +${sendResults.successful} messages`);
+      } else {
+        // Create new record for today
+        await db.insert(rateLimitTracking)
+          .values({
+            date: today,
+            dailyCount: sendResults.successful,
+            peakCount: sendResults.successful,
+            lastReset: currentTime
+          });
+        
+        console.log(`✅ Created rate limit tracking: ${sendResults.successful} messages`);
+      }
     }
 
     console.log('📊 Bulk send results:', sendResults);

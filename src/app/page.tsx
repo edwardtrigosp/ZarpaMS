@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText } from "lucide-react";
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -58,6 +58,7 @@ export default function HomePage() {
   const [config, setConfig] = useState<WhatsAppConfig | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [apiKey, setApiKeyState] = useState("");
   const [showApiKeySetup, setShowApiKeySetup] = useState(false);
 
@@ -71,7 +72,16 @@ export default function HomePage() {
       fetchConfig();
       fetchStats();
     }
-  }, []);
+
+    // ✅ Auto-refresh stats every 10 seconds
+    const interval = setInterval(() => {
+      if (savedKey && !showApiKeySetup) {
+        fetchStats();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [showApiKeySetup]);
 
   const fetchConfig = async () => {
     try {
@@ -104,6 +114,16 @@ export default function HomePage() {
     } catch (err) {
       console.error("Error fetching stats:", err);
     }
+  };
+
+  const handleRefreshStats = async () => {
+    setRefreshing(true);
+    toast.loading("Actualizando estadísticas...", { id: "refresh-stats" });
+    
+    await fetchStats();
+    
+    toast.success("Estadísticas actualizadas", { id: "refresh-stats" });
+    setRefreshing(false);
   };
 
   const handleSaveApiKey = () => {
@@ -193,11 +213,22 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Gestiona tu plataforma de mensajería automatizada de WhatsApp
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
+            <p className="text-muted-foreground">
+              Gestiona tu plataforma de mensajería automatizada de WhatsApp
+            </p>
+          </div>
+          <Button 
+            onClick={handleRefreshStats} 
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -211,6 +242,12 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground">
                 de {stats?.dailyLimit || 1000} diarios
               </p>
+              <div className="mt-2 w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-primary rounded-full h-2 transition-all" 
+                  style={{ width: `${Math.min(stats?.utilizationDaily || 0, 100)}%` }}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -237,6 +274,12 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground">
                 de {stats?.peakLimit || 10000} máximo
               </p>
+              <div className="mt-2 w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-blue-500 rounded-full h-2 transition-all" 
+                  style={{ width: `${Math.min(stats?.utilizationPeak || 0, 100)}%` }}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -245,7 +288,6 @@ export default function HomePage() {
               <CardTitle className="text-sm font-medium">Estado</CardTitle>
               {config?.isVerified ?
               <CheckCircle className="h-4 w-4 text-green-600" /> :
-
               <XCircle className="h-4 w-4 text-destructive" />
               }
             </CardHeader>
@@ -253,7 +295,6 @@ export default function HomePage() {
               <div className="text-2xl font-bold">
                 {config?.isVerified ?
                 <Badge variant="default" className="bg-green-600">Verificado</Badge> :
-
                 <Badge variant="destructive">No Verificado</Badge>
                 }
               </div>
@@ -262,6 +303,13 @@ export default function HomePage() {
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mb-8 flex items-center justify-center">
+          <p className="text-xs text-muted-foreground flex items-center gap-2">
+            <RefreshCw className="h-3 w-3" />
+            Las estadísticas se actualizan automáticamente cada 10 segundos
+          </p>
         </div>
 
         <div className="mb-8">
