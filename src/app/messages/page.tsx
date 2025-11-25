@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Papa from "papaparse"
+import * as XLSX from "xlsx"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -111,47 +112,122 @@ export default function MessagesPage() {
     if (!file) return
 
     setCsvFile(file)
+    
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    
+    // Si es archivo Excel (.xlsx, .xls), convertir a CSV primero
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      const reader = new FileReader()
+      
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array' })
+          
+          // Obtener la primera hoja
+          const firstSheetName = workbook.SheetNames[0]
+          const worksheet = workbook.Sheets[firstSheetName]
+          
+          // Convertir a CSV
+          const csvString = XLSX.utils.sheet_to_csv(worksheet)
+          
+          // Procesar el CSV generado
+          Papa.parse(csvString, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              const parsed: Contact[] = []
+              
+              results.data.forEach((row: any) => {
+                if (row.phoneNumber) {
+                  const contact: Contact = {
+                    phoneNumber: row.phoneNumber,
+                    name: row.name || undefined,
+                  }
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const parsed: Contact[] = []
-        
-        results.data.forEach((row: any) => {
-          if (row.phoneNumber) {
-            const contact: Contact = {
-              phoneNumber: row.phoneNumber,
-              name: row.name || undefined,
-            }
+                  const variables: Record<string, string> = {}
+                  Object.keys(row).forEach((key) => {
+                    if (key !== "phoneNumber" && key !== "name" && row[key]) {
+                      variables[key] = row[key]
+                    }
+                  })
 
-            const variables: Record<string, string> = {}
-            Object.keys(row).forEach((key) => {
-              if (key !== "phoneNumber" && key !== "name" && row[key]) {
-                variables[key] = row[key]
+                  if (Object.keys(variables).length > 0) {
+                    contact.variables = variables
+                  }
+
+                  parsed.push(contact)
+                }
+              })
+
+              setContacts(parsed)
+              setCurrentStep(2)
+              toast.success(`✅ ${parsed.length} contactos cargados desde Excel`, {
+                description: "Archivo convertido y listo para enviar"
+              })
+            },
+            error: (error) => {
+              toast.error("Error al procesar el archivo Excel", {
+                description: error.message
+              })
+            },
+          })
+        } catch (error) {
+          console.error("Error reading Excel file:", error)
+          toast.error("Error al leer el archivo Excel", {
+            description: "Verifica que el archivo no esté dañado"
+          })
+        }
+      }
+      
+      reader.onerror = () => {
+        toast.error("Error al leer el archivo")
+      }
+      
+      reader.readAsArrayBuffer(file)
+    } else {
+      // Si es CSV, procesarlo directamente como antes
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const parsed: Contact[] = []
+          
+          results.data.forEach((row: any) => {
+            if (row.phoneNumber) {
+              const contact: Contact = {
+                phoneNumber: row.phoneNumber,
+                name: row.name || undefined,
               }
-            })
 
-            if (Object.keys(variables).length > 0) {
-              contact.variables = variables
+              const variables: Record<string, string> = {}
+              Object.keys(row).forEach((key) => {
+                if (key !== "phoneNumber" && key !== "name" && row[key]) {
+                  variables[key] = row[key]
+                }
+              })
+
+              if (Object.keys(variables).length > 0) {
+                contact.variables = variables
+              }
+
+              parsed.push(contact)
             }
+          })
 
-            parsed.push(contact)
-          }
-        })
-
-        setContacts(parsed)
-        setCurrentStep(2)
-        toast.success(`✅ ${parsed.length} contactos cargados`, {
-          description: "Listo para enviar"
-        })
-      },
-      error: (error) => {
-        toast.error("Error al leer el archivo CSV", {
-          description: error.message
-        })
-      },
-    })
+          setContacts(parsed)
+          setCurrentStep(2)
+          toast.success(`✅ ${parsed.length} contactos cargados`, {
+            description: "Listo para enviar"
+          })
+        },
+        error: (error) => {
+          toast.error("Error al leer el archivo CSV", {
+            description: error.message
+          })
+        },
+      })
+    }
   }
 
   const handleSendTestMessage = async () => {
