@@ -52,7 +52,7 @@ export const Sidebar = () => {
           {!collapsed &&
           <div className="flex items-center gap-2">
               <MessageSquare className="h-8 w-8 text-sidebar-primary" />
-              <span className="font-bold text-sidebar-foreground">Zarpa MS</span>
+              <span className="font-bold text-sidebar-foreground !whitespace-pre-line">ZARPA MS</span>
             </div>
           }
           {collapsed &&
