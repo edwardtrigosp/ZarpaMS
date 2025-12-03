@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight, DollarSign, Calculator } from "lucide-react"
+import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight, DollarSign, Calculator, MessageSquare, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Papa from "papaparse"
 import * as XLSX from "xlsx"
@@ -429,217 +430,235 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 max-w-5xl">
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">Envío de Mensajes</h2>
-            <p className="text-muted-foreground">
-              Proceso simple en 2 pasos
-            </p>
-          </div>
-          
-          {/* Test Message Dialog Trigger */}
-          <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Zap className="h-4 w-4 mr-2" />
-                Envío Rápido
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>⚡ Envío de Prueba Rápido</DialogTitle>
-                <DialogDescription>
-                  Envía un mensaje de prueba a un solo número
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="test-template">Plantilla *</Label>
-                  <Select
-                    value={selectedTemplate?.id.toString()}
-                    onValueChange={(value) => {
-                      const template = templates.find((t) => t.id.toString() === value)
-                      setSelectedTemplate(template || null)
-                      if (template && template.variables) {
-                        const newVars: Record<string, string> = {}
-                        template.variables.forEach(v => newVars[v] = "")
-                        setTestVariables(newVars)
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="test-template">
-                      <SelectValue placeholder="Selecciona una plantilla" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates.map((template) => (
-                        <SelectItem key={template.id} value={template.id.toString()}>
-                          {template.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="test-phone">Teléfono *</Label>
-                    <Input
-                      id="test-phone"
-                      type="tel"
-                      placeholder="5215551234567"
-                      value={testPhone}
-                      onChange={(e) => setTestPhone(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Con código de país (+ opcional)
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="test-name">Nombre</Label>
-                    <Input
-                      id="test-name"
-                      placeholder="Juan Pérez"
-                      value={testName}
-                      onChange={(e) => setTestName(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Variables de la plantilla</Label>
-                    {selectedTemplate.variables.map((variable) => (
-                      <div key={variable} className="space-y-2">
-                        <Label htmlFor={`test-var-${variable}`} className="text-sm">
-                          {variable} *
-                        </Label>
-                        <Input
-                          id={`test-var-${variable}`}
-                          placeholder={`Valor para ${variable}`}
-                          value={testVariables[variable] || ""}
-                          onChange={(e) => 
-                            setTestVariables({...testVariables, [variable]: e.target.value})
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleSendTestMessage}
-                  disabled={sendingTest || !selectedTemplate || !testPhone}
-                  className="w-full"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {sendingTest ? "Enviando..." : "Enviar Prueba"}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">Envío de Mensajes</h2>
+              <p className="text-muted-foreground">
+                Envía mensajes masivos de WhatsApp con plantillas aprobadas
+              </p>
+            </div>
+            
+            {/* Test Message Dialog Trigger */}
+            <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Zap className="h-4 w-4 mr-2" />
+                  Envío Rápido
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>⚡ Envío de Prueba Rápido</DialogTitle>
+                  <DialogDescription>
+                    Envía un mensaje de prueba a un solo número
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-template">Plantilla *</Label>
+                    <Select
+                      value={selectedTemplate?.id.toString()}
+                      onValueChange={(value) => {
+                        const template = templates.find((t) => t.id.toString() === value)
+                        setSelectedTemplate(template || null)
+                        if (template && template.variables) {
+                          const newVars: Record<string, string> = {}
+                          template.variables.forEach(v => newVars[v] = "")
+                          setTestVariables(newVars)
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="test-template">
+                        <SelectValue placeholder="Selecciona una plantilla" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id.toString()}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="test-phone">Teléfono *</Label>
+                      <Input
+                        id="test-phone"
+                        type="tel"
+                        placeholder="5215551234567"
+                        value={testPhone}
+                        onChange={(e) => setTestPhone(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Con código de país (+ opcional)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="test-name">Nombre</Label>
+                      <Input
+                        id="test-name"
+                        placeholder="Juan Pérez"
+                        value={testName}
+                        onChange={(e) => setTestName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {selectedTemplate && selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Variables de la plantilla</Label>
+                      {selectedTemplate.variables.map((variable) => (
+                        <div key={variable} className="space-y-2">
+                          <Label htmlFor={`test-var-${variable}`} className="text-sm">
+                            {variable} *
+                          </Label>
+                          <Input
+                            id={`test-var-${variable}`}
+                            placeholder={`Valor para ${variable}`}
+                            value={testVariables[variable] || ""}
+                            onChange={(e) => 
+                              setTestVariables({...testVariables, [variable]: e.target.value})
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSendTestMessage}
+                    disabled={sendingTest || !selectedTemplate || !testPhone}
+                    className="w-full"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {sendingTest ? "Enviando..." : "Enviar Prueba"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8 flex items-center justify-center gap-4">
-          <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${currentStep >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-              {currentStep > 1 ? <CheckCircle2 className="h-5 w-5" /> : "1"}
+        <div className="mb-8">
+          <div className="flex items-center justify-center gap-4">
+            <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold ${currentStep >= 1 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                {currentStep > 1 ? <CheckCircle2 className="h-5 w-5" /> : "1"}
+              </div>
+              <span className="font-medium">Cargar Contactos</span>
             </div>
-            <span className="font-medium">Cargar Contactos</span>
-          </div>
-          
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          
-          <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${currentStep >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-              {currentStep > 2 ? <CheckCircle2 className="h-5 w-5" /> : "2"}
+            
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            
+            <div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold ${currentStep >= 2 ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                {currentStep > 2 ? <CheckCircle2 className="h-5 w-5" /> : "2"}
+              </div>
+              <span className="font-medium">Enviar Mensajes</span>
             </div>
-            <span className="font-medium">Enviar Mensajes</span>
           </div>
         </div>
 
         {/* 💰 Calculadora de Costos */}
         {selectedTemplate && contacts.length > 0 && (
-          <Card className="mb-6 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
+          <Card className="mb-6 border-green-500/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-600 rounded-lg">
                   <Calculator className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Cálculo de Costo de Envío</CardTitle>
-                  <CardDescription>Estimación basada en tarifas de Meta por categoría de plantilla</CardDescription>
+                  <CardTitle className="text-lg">Estimación de Costo</CardTitle>
+                  <CardDescription>Basado en la categoría de plantilla y cantidad de mensajes</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">Total de Mensajes</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{costData.count}</p>
-                </div>
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <p className="text-xs font-medium text-muted-foreground">Total de Mensajes</p>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{costData.count}</p>
+                  </CardContent>
+                </Card>
                 
-                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">Categoría</p>
-                  <Badge variant="secondary" className="text-sm font-semibold">
-                    {costData.categoryName}
-                  </Badge>
-                </div>
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Categoría</p>
+                    <Badge variant="secondary" className="text-sm font-semibold">
+                      {costData.categoryName}
+                    </Badge>
+                  </CardContent>
+                </Card>
                 
-                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">Tarifa Unitaria</p>
-                  <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
-                    ${costData.rate.toFixed(3)}
-                  </p>
-                </div>
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      <p className="text-xs font-medium text-muted-foreground">Tarifa Unitaria</p>
+                    </div>
+                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                      ${costData.rate.toFixed(3)}
+                    </p>
+                  </CardContent>
+                </Card>
                 
-                <div className="p-3 bg-gradient-to-br from-green-600 to-emerald-600 text-white rounded-lg border border-green-700">
-                  <p className="text-xs opacity-90 mb-1">Costo Total Estimado</p>
-                  <div className="flex items-baseline gap-1">
-                    <DollarSign className="h-5 w-5" />
-                    <p className="text-2xl font-bold">{costData.total.toFixed(2)}</p>
-                    <span className="text-xs opacity-80">USD</span>
-                  </div>
-                </div>
+                <Card className="border-0 shadow-sm bg-gradient-to-br from-green-600 to-emerald-600 text-white">
+                  <CardContent className="p-4">
+                    <p className="text-xs opacity-90 mb-1 font-medium">Costo Total Estimado</p>
+                    <div className="flex items-baseline gap-1">
+                      <DollarSign className="h-5 w-5" />
+                      <p className="text-2xl font-bold">{costData.total.toFixed(2)}</p>
+                      <span className="text-xs opacity-80">USD</span>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border text-xs text-muted-foreground">
-                <p className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>
-                    <strong>Fórmula:</strong> {costData.count} mensajes × ${costData.rate.toFixed(3)} ({costData.categoryName}) = ${costData.total.toFixed(2)} USD
-                  </span>
-                </p>
-              </div>
+              <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
+                  <strong>Fórmula:</strong> {costData.count} mensajes × ${costData.rate.toFixed(3)} ({costData.categoryName}) = ${costData.total.toFixed(2)} USD
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         )}
 
         {/* Main Card */}
-        <Card className="shadow-lg">
-          <CardHeader className="border-b bg-muted/50">
-            <CardTitle className="flex items-center gap-2">
+        <Card>
+          <CardHeader className="border-b">
+            <div className="flex items-center gap-2">
               {currentStep === 1 && (
                 <>
-                  <FileSpreadsheet className="h-5 w-5" />
-                  Paso 1: Carga tu Archivo Excel/CSV
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle>Paso 1: Carga tu Archivo</CardTitle>
+                    <CardDescription>Selecciona una plantilla y sube tu archivo con los contactos</CardDescription>
+                  </div>
                 </>
               )}
               {currentStep === 2 && (
                 <>
-                  <Send className="h-5 w-5" />
-                  Paso 2: Revisa y Envía
+                  <Send className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle>Paso 2: Revisa y Envía</CardTitle>
+                    <CardDescription>Verifica los datos y envía los mensajes</CardDescription>
+                  </div>
                 </>
               )}
-            </CardTitle>
-            <CardDescription>
-              {currentStep === 1 && "Selecciona una plantilla y sube tu archivo con los contactos"}
-              {currentStep === 2 && "Verifica los datos y envía los mensajes"}
-            </CardDescription>
+            </div>
           </CardHeader>
           
           <CardContent className="p-6">
@@ -677,22 +696,24 @@ export default function MessagesPage() {
                   </Select>
 
                   {selectedTemplate && (
-                    <div className="p-4 bg-muted rounded-lg space-y-2">
-                      <p className="text-sm font-medium">Vista Previa:</p>
-                      <p className="text-sm whitespace-pre-wrap text-muted-foreground">{selectedTemplate.content}</p>
-                      {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground mb-2">Variables necesarias:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedTemplate.variables.map((v) => (
-                              <Badge key={v} variant="secondary" className="text-xs">
-                                {v}
-                              </Badge>
-                            ))}
+                    <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                      <AlertDescription>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">Vista Previa:</p>
+                        <p className="text-sm whitespace-pre-wrap text-blue-800 dark:text-blue-400">{selectedTemplate.content}</p>
+                        {selectedTemplate.variables && selectedTemplate.variables.length > 0 && (
+                          <div className="pt-3 mt-3 border-t border-blue-200 dark:border-blue-800">
+                            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">Variables necesarias:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedTemplate.variables.map((v) => (
+                                <Badge key={v} variant="secondary" className="text-xs">
+                                  {v}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
 
@@ -742,10 +763,12 @@ export default function MessagesPage() {
                   </div>
                   
                   {!selectedTemplate && (
-                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
-                      <AlertCircle className="h-4 w-4" />
-                      <p className="text-xs">Selecciona una plantilla primero</p>
-                    </div>
+                    <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
+                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                      <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
+                        Selecciona una plantilla primero para poder cargar contactos
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
               </div>
@@ -756,44 +779,55 @@ export default function MessagesPage() {
               <div className="space-y-6">
                 {/* Summary */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-muted-foreground mb-1">Plantilla</p>
-                    <p className="font-semibold">{selectedTemplate?.name}</p>
-                  </div>
-                  <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                    <p className="text-sm text-muted-foreground mb-1">Total Contactos</p>
-                    <p className="font-semibold text-2xl">{contacts.length}</p>
-                  </div>
+                  <Card className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-muted-foreground mb-1">Plantilla Seleccionada</p>
+                      <p className="font-semibold text-blue-900 dark:text-blue-300">{selectedTemplate?.name}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-green-500/20 bg-green-50 dark:bg-green-950/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Total Contactos</p>
+                          <p className="font-semibold text-2xl text-green-900 dark:text-green-300">{contacts.length}</p>
+                        </div>
+                        <Users className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Contacts Preview */}
                 <div className="space-y-3">
                   <Label className="text-base font-semibold">Vista Previa de Contactos</Label>
-                  <div className="border rounded-lg max-h-48 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium">#</th>
-                          <th className="text-left p-3 font-medium">Teléfono</th>
-                          <th className="text-left p-3 font-medium">Nombre</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {contacts.slice(0, 10).map((c, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="p-3 text-muted-foreground">{i + 1}</td>
-                            <td className="p-3 font-mono text-xs">{c.phoneNumber}</td>
-                            <td className="p-3">{c.name || "-"}</td>
+                  <Card>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted sticky top-0 z-10">
+                          <tr>
+                            <th className="text-left p-3 font-medium">#</th>
+                            <th className="text-left p-3 font-medium">Teléfono</th>
+                            <th className="text-left p-3 font-medium">Nombre</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {contacts.length > 10 && (
-                      <div className="p-3 bg-muted text-center text-sm text-muted-foreground border-t">
-                        ... y {contacts.length - 10} contactos más
-                      </div>
-                    )}
-                  </div>
+                        </thead>
+                        <tbody>
+                          {contacts.slice(0, 10).map((c, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="p-3 text-muted-foreground">{i + 1}</td>
+                              <td className="p-3 font-mono text-xs">{c.phoneNumber}</td>
+                              <td className="p-3">{c.name || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {contacts.length > 10 && (
+                        <div className="p-3 bg-muted text-center text-sm text-muted-foreground border-t">
+                          ... y {contacts.length - 10} contactos más
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 </div>
 
                 {/* Action Buttons */}
@@ -828,33 +862,55 @@ export default function MessagesPage() {
         {/* Info Cards */}
         <div className="grid md:grid-cols-2 gap-4 mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">📋 Formato del Archivo</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Formato del Archivo
+              </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <p><strong>Columnas requeridas:</strong></p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">phoneNumber</code> - Con código de país (+ se agrega automáticamente)</li>
-                <li><code className="text-xs bg-muted px-1 py-0.5 rounded">name</code> - Nombre del contacto (opcional)</li>
-              </ul>
-              <p className="pt-2"><strong>Variables adicionales:</strong></p>
-              <p className="text-muted-foreground">Dependen de la plantilla seleccionada</p>
+            <CardContent className="text-sm space-y-3">
+              <div>
+                <p className="font-semibold mb-2">Columnas requeridas:</p>
+                <ul className="space-y-1.5 text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span><code className="text-xs bg-muted px-1.5 py-0.5 rounded">phoneNumber</code> - Con código de país (+ se agrega automáticamente)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <span><code className="text-xs bg-muted px-1.5 py-0.5 rounded">name</code> - Nombre del contacto (opcional)</span>
+                  </li>
+                </ul>
+              </div>
+              <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
+                  <strong>Variables adicionales:</strong> Dependen de la plantilla seleccionada
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">⚡ Límites de Envío</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Límites de Envío
+              </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Límite Diario:</span>
-                <Badge variant="secondary">1,000 mensajes</Badge>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium">Límite Diario:</span>
+                <Badge variant="secondary" className="text-sm">1,000 mensajes</Badge>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Límite Pico:</span>
-                <Badge variant="secondary">10,000 mensajes</Badge>
+              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium">Límite Pico:</span>
+                <Badge variant="secondary" className="text-sm">10,000 mensajes</Badge>
               </div>
+              <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
+                <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
+                  Los límites se actualizan automáticamente según tu tier de Meta
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         </div>
