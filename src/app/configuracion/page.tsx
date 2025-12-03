@@ -112,11 +112,11 @@ export default function ConfiguracionPage() {
   });
 
   const totalCost = (
-    (calculatorData.marketingCount * calculatorData.marketingRate) +
-    (calculatorData.utilityCount * calculatorData.utilityRate) +
-    (calculatorData.authCount * calculatorData.authRate) +
-    (calculatorData.serviceCount * calculatorData.serviceRate)
-  ).toFixed(2);
+  calculatorData.marketingCount * calculatorData.marketingRate +
+  calculatorData.utilityCount * calculatorData.utilityRate +
+  calculatorData.authCount * calculatorData.authRate +
+  calculatorData.serviceCount * calculatorData.serviceRate).
+  toFixed(2);
 
   useEffect(() => {
     fetchConfig();
@@ -231,16 +231,16 @@ export default function ConfiguracionPage() {
         toast.success("✅ Tier actualizado exitosamente", {
           description: `Nuevo límite: ${data.newLimit.toLocaleString()} mensajes/24h`
         });
-        
+
         // Actualizar configuración local
         setFormData({
           ...formData,
           peakLimit: data.newLimit
         });
-        
+
         // Refrescar configuración
         fetchConfig();
-        
+
         // Actualizar tier info
         setTierInfo({
           tier: data.tier,
@@ -750,8 +750,8 @@ export default function ConfiguracionPage() {
                         <Input
                           type="number"
                           value={formData.dailyLimit}
-                          onChange={(e) => setFormData({ ...formData, dailyLimit: parseInt(e.target.value) || 0 })}
-                        />
+                          onChange={(e) => setFormData({ ...formData, dailyLimit: parseInt(e.target.value) || 0 })} />
+
                         <Button onClick={handleSave} disabled={saving}>
                           {saving ? "Guardando..." : "Actualizar"}
                         </Button>
@@ -776,8 +776,8 @@ export default function ConfiguracionPage() {
                         <span className="text-sm font-medium">Nivel Actual (Tier)</span>
                         <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           {formData.peakLimit >= 100000 ? "Tier 3 (100k)" :
-                           formData.peakLimit >= 10000 ? "Tier 2 (10k)" :
-                           formData.peakLimit >= 1000 ? "Tier 1 (1k)" : "Trial (50)"}
+                          formData.peakLimit >= 10000 ? "Tier 2 (10k)" :
+                          formData.peakLimit >= 1000 ? "Tier 1 (1k)" : "Trial (50)"}
                         </Badge>
                       </div>
                       
@@ -787,10 +787,10 @@ export default function ConfiguracionPage() {
                           <span className="text-sm text-muted-foreground">mensajes / 24 horas</span>
                         </div>
                         <div className="mt-2 h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-600 rounded-full" 
-                            style={{ width: `${Math.min((formData.dailyLimit / formData.peakLimit) * 100, 100)}%` }}
-                          />
+                          <div
+                            className="h-full bg-blue-600 rounded-full"
+                            style={{ width: `${Math.min(formData.dailyLimit / formData.peakLimit * 100, 100)}%` }} />
+
                         </div>
                         <p className="text-xs text-muted-foreground mt-2 flex justify-between">
                           <span>Uso planeado: {formData.dailyLimit.toLocaleString()}</span>
@@ -820,50 +820,50 @@ export default function ConfiguracionPage() {
                 <div className="space-y-6">
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {[
-                      { id: 'marketing', label: 'Marketing', color: 'text-purple-600' },
-                      { id: 'utility', label: 'Utilidad', color: 'text-blue-600' },
-                      { id: 'auth', label: 'Autenticación', color: 'text-orange-600' },
-                      { id: 'service', label: 'Servicio', color: 'text-green-600' }
-                    ].map((type) => (
-                      <div key={type.id} className="p-4 border rounded-lg space-y-3">
+                    { id: 'marketing', label: 'Marketing', color: 'text-purple-600' },
+                    { id: 'utility', label: 'Utilidad', color: 'text-blue-600' },
+                    { id: 'auth', label: 'Autenticación', color: 'text-orange-600' },
+                    { id: 'service', label: 'Servicio', color: 'text-green-600' }].
+                    map((type) =>
+                    <div key={type.id} className="p-4 border rounded-lg space-y-3">
                         <span className={`font-medium ${type.color}`}>{type.label}</span>
                         
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Cantidad / Mes</Label>
                           <Input
-                            type="number"
-                            className="h-8"
-                            value={calculatorData[`${type.id}Count` as keyof typeof calculatorData]}
-                            onChange={(e) => setCalculatorData({
-                              ...calculatorData,
-                              [`${type.id}Count`]: parseInt(e.target.value) || 0
-                            })}
-                          />
+                          type="number"
+                          className="h-8"
+                          value={calculatorData[`${type.id}Count` as keyof typeof calculatorData]}
+                          onChange={(e) => setCalculatorData({
+                            ...calculatorData,
+                            [`${type.id}Count`]: parseInt(e.target.value) || 0
+                          })} />
+
                         </div>
 
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">Costo Unitario ($)</Label>
                           <Input
-                            type="number"
-                            className="h-8"
-                            step="0.001"
-                            value={calculatorData[`${type.id}Rate` as keyof typeof calculatorData]}
-                            onChange={(e) => setCalculatorData({
-                              ...calculatorData,
-                              [`${type.id}Rate`]: parseFloat(e.target.value) || 0
-                            })}
-                          />
+                          type="number"
+                          className="h-8"
+                          step="0.001"
+                          value={calculatorData[`${type.id}Rate` as keyof typeof calculatorData]}
+                          onChange={(e) => setCalculatorData({
+                            ...calculatorData,
+                            [`${type.id}Rate`]: parseFloat(e.target.value) || 0
+                          })} />
+
                         </div>
 
                         <div className="pt-2 border-t flex justify-between items-center text-sm">
                           <span className="text-muted-foreground">Subtotal:</span>
                           <span className="font-semibold">
-                            ${((calculatorData[`${type.id}Count` as keyof typeof calculatorData] * 
-                               calculatorData[`${type.id}Rate` as keyof typeof calculatorData])).toFixed(2)}
+                            ${(calculatorData[`${type.id}Count` as keyof typeof calculatorData] *
+                          calculatorData[`${type.id}Rate` as keyof typeof calculatorData]).toFixed(2)}
                           </span>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-6 bg-muted rounded-lg border">
@@ -901,13 +901,13 @@ export default function ConfiguracionPage() {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Límite Diario del Sistema</Label>
+                      <Label className="!w-[239px] !h-5">Límite Diario del Sistema</Label>
                       <div className="flex gap-2">
                         <Input
                           type="number"
                           value={formData.dailyLimit}
-                          onChange={(e) => setFormData({ ...formData, dailyLimit: parseInt(e.target.value) || 0 })}
-                        />
+                          onChange={(e) => setFormData({ ...formData, dailyLimit: parseInt(e.target.value) || 0 })} />
+
                         <Button onClick={handleSave} disabled={saving}>
                           {saving ? "Guardando..." : "Actualizar"}
                         </Button>
@@ -933,25 +933,25 @@ export default function ConfiguracionPage() {
                           size="sm"
                           variant="outline"
                           onClick={handleCheckTier}
-                          disabled={checkingTier || !config}
-                        >
+                          disabled={checkingTier || !config}>
+
                           <RefreshCw className={`h-4 w-4 mr-2 ${checkingTier ? 'animate-spin' : ''}`} />
                           Verificar Tier
                         </Button>
-                        {tierInfo && tierInfo.needsUpdate && (
-                          <Button
-                            size="sm"
-                            onClick={handleUpdateTier}
-                            disabled={checkingTier}
-                          >
+                        {tierInfo && tierInfo.needsUpdate &&
+                        <Button
+                          size="sm"
+                          onClick={handleUpdateTier}
+                          disabled={checkingTier}>
+
                             Actualizar Límite
                           </Button>
-                        )}
+                        }
                       </div>
                     </div>
 
-                    {tierInfo && (
-                      <Alert className="border-green-500/20 bg-green-50 dark:bg-green-950/20">
+                    {tierInfo &&
+                    <Alert className="border-green-500/20 bg-green-50 dark:bg-green-950/20">
                         <CheckCircle className="h-4 w-4 text-green-600" />
                         <AlertDescription className="text-xs text-green-900 dark:text-green-300">
                           <strong>Tier desde Meta:</strong> {tierInfo.tier}
@@ -959,23 +959,23 @@ export default function ConfiguracionPage() {
                           <strong>Calidad:</strong> {tierInfo.qualityRating}
                           <br />
                           <strong>Límite de Meta:</strong> {tierInfo.peakLimit.toLocaleString()} mensajes/24h
-                          {tierInfo.needsUpdate && (
-                            <>
+                          {tierInfo.needsUpdate &&
+                        <>
                               <br />
                               <strong className="text-amber-700 dark:text-amber-400">⚠️ Tu límite local está desactualizado. Haz clic en "Actualizar Límite".</strong>
                             </>
-                          )}
+                        }
                         </AlertDescription>
                       </Alert>
-                    )}
+                    }
 
                     <div className="p-4 bg-muted rounded-lg border space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Nivel Actual (Tier)</span>
                         <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           {formData.peakLimit >= 100000 ? "Tier 3 (100k)" :
-                           formData.peakLimit >= 10000 ? "Tier 2 (10k)" :
-                           formData.peakLimit >= 1000 ? "Tier 1 (1k)" : "Trial (50)"}
+                          formData.peakLimit >= 10000 ? "Tier 2 (10k)" :
+                          formData.peakLimit >= 1000 ? "Tier 1 (1k)" : "Trial (50)"}
                         </Badge>
                       </div>
                       
@@ -985,10 +985,10 @@ export default function ConfiguracionPage() {
                           <span className="text-sm text-muted-foreground">mensajes / 24 horas</span>
                         </div>
                         <div className="mt-2 h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-600 rounded-full" 
-                            style={{ width: `${Math.min((formData.dailyLimit / formData.peakLimit) * 100, 100)}%` }}
-                          />
+                          <div
+                            className="h-full bg-blue-600 rounded-full"
+                            style={{ width: `${Math.min(formData.dailyLimit / formData.peakLimit * 100, 100)}%` }} />
+
                         </div>
                         <p className="text-xs text-muted-foreground mt-2 flex justify-between">
                           <span>Uso planeado: {formData.dailyLimit.toLocaleString()}</span>
