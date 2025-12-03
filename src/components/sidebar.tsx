@@ -66,7 +66,7 @@ export const Sidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2 !w-[204px] !h-[445px]">
+        <nav className="flex-1 space-y-1 p-2 !w-[227px] !h-[444px]">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
