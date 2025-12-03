@@ -75,11 +75,11 @@ export const Sidebar = () => {
               <Link key={item.href} href={item.href}>
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start gap-3",
-                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-                    collapsed && "justify-center px-2"
-                  )}
+                  className="!w-full !h-9"
+
+
+
+
                   title={collapsed ? item.label : undefined}>
 
                   <Icon className="h-5 w-5 flex-shrink-0" />

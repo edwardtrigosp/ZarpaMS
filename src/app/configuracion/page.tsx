@@ -711,7 +711,9 @@ export default function ConfiguracionPage() {
                 }
               </CardContent>
             </Card>
+          </TabsContent>
 
+          <TabsContent value="webhook" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -820,10 +822,10 @@ export default function ConfiguracionPage() {
                   <Button
                     variant="outline"
                     onClick={() => window.open('https://developers.facebook.com/apps', '_blank')}
-                    className="w-full !whitespace-pre-line">
+                    className="w-full">
 
-                    <ExternalLink className="h-4 w-4 mr-2" />Abrir Meta Developer
-
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Abrir Meta Developer Console
                   </Button>
                 </div>
 
