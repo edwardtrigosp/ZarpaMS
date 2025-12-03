@@ -51,7 +51,7 @@ export const Sidebar = () => {
         collapsed ? "w-16" : "w-64"
       )}>
 
-      <div className="flex h-full flex-col">
+      <div className="flex flex-col !w-[99.7%] !h-full">
         {/* Header */}
         <div className="flex h-16 items-center border-b px-4">
           {!collapsed &&
