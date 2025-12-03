@@ -82,6 +82,15 @@ export default function ConfiguracionPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isEditingCredentials, setIsEditingCredentials] = useState(false);
 
+  // Estado para verificación de tier
+  const [checkingTier, setCheckingTier] = useState(false);
+  const [tierInfo, setTierInfo] = useState<{
+    tier: string;
+    peakLimit: number;
+    qualityRating: string;
+    needsUpdate: boolean;
+  } | null>(null);
+
   const [formData, setFormData] = useState({
     phoneNumberId: "",
     accessToken: "",
@@ -180,6 +189,75 @@ export default function ConfiguracionPage() {
       console.error("Error fetching webhook events:", err);
     } finally {
       if (!silent) setLoadingEvents(false);
+    }
+  };
+
+  const handleCheckTier = async () => {
+    setCheckingTier(true);
+    try {
+      const res = await fetch("/api/whatsapp/check-tier", {
+        headers: getFetchHeaders()
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTierInfo(data);
+        toast.success("✅ Tier verificado desde Meta", {
+          description: `Tier: ${data.tier} (${data.peakLimit.toLocaleString()} mensajes/24h)`
+        });
+      } else {
+        const data = await res.json();
+        toast.error("Error al verificar tier", {
+          description: data.error || "No se pudo obtener información de Meta"
+        });
+      }
+    } catch (err) {
+      toast.error("Error de conexión al verificar tier");
+    } finally {
+      setCheckingTier(false);
+    }
+  };
+
+  const handleUpdateTier = async () => {
+    setCheckingTier(true);
+    try {
+      const res = await fetch("/api/whatsapp/check-tier", {
+        method: "POST",
+        headers: getFetchHeaders()
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success("✅ Tier actualizado exitosamente", {
+          description: `Nuevo límite: ${data.newLimit.toLocaleString()} mensajes/24h`
+        });
+        
+        // Actualizar configuración local
+        setFormData({
+          ...formData,
+          peakLimit: data.newLimit
+        });
+        
+        // Refrescar configuración
+        fetchConfig();
+        
+        // Actualizar tier info
+        setTierInfo({
+          tier: data.tier,
+          peakLimit: data.newLimit,
+          qualityRating: data.qualityRating,
+          needsUpdate: false
+        });
+      } else {
+        const data = await res.json();
+        toast.error("Error al actualizar tier", {
+          description: data.error || "No se pudo actualizar desde Meta"
+        });
+      }
+    } catch (err) {
+      toast.error("Error de conexión al actualizar tier");
+    } finally {
+      setCheckingTier(false);
     }
   };
 
@@ -848,7 +926,49 @@ export default function ConfiguracionPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <Label>Capacidad Autorizada por Meta</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Capacidad Autorizada por Meta</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCheckTier}
+                          disabled={checkingTier || !config}
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 ${checkingTier ? 'animate-spin' : ''}`} />
+                          Verificar Tier
+                        </Button>
+                        {tierInfo && tierInfo.needsUpdate && (
+                          <Button
+                            size="sm"
+                            onClick={handleUpdateTier}
+                            disabled={checkingTier}
+                          >
+                            Actualizar Límite
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {tierInfo && (
+                      <Alert className="border-green-500/20 bg-green-50 dark:bg-green-950/20">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-xs text-green-900 dark:text-green-300">
+                          <strong>Tier desde Meta:</strong> {tierInfo.tier}
+                          <br />
+                          <strong>Calidad:</strong> {tierInfo.qualityRating}
+                          <br />
+                          <strong>Límite de Meta:</strong> {tierInfo.peakLimit.toLocaleString()} mensajes/24h
+                          {tierInfo.needsUpdate && (
+                            <>
+                              <br />
+                              <strong className="text-amber-700 dark:text-amber-400">⚠️ Tu límite local está desactualizado. Haz clic en "Actualizar Límite".</strong>
+                            </>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     <div className="p-4 bg-muted rounded-lg border space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Nivel Actual (Tier)</span>
