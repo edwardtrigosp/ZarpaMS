@@ -100,24 +100,6 @@ export default function ConfiguracionPage() {
     peakLimit: 10000
   });
 
-  const [calculatorData, setCalculatorData] = useState({
-    marketingCount: 1000,
-    utilityCount: 500,
-    authCount: 100,
-    serviceCount: 200,
-    marketingRate: 0.06,
-    utilityRate: 0.03,
-    authRate: 0.03,
-    serviceRate: 0.01
-  });
-
-  const totalCost = (
-  calculatorData.marketingCount * calculatorData.marketingRate +
-  calculatorData.utilityCount * calculatorData.utilityRate +
-  calculatorData.authCount * calculatorData.authRate +
-  calculatorData.serviceCount * calculatorData.serviceRate).
-  toFixed(2);
-
   useEffect(() => {
     fetchConfig();
     fetchWebhookInfo();
