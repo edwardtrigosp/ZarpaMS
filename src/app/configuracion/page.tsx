@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Webhook, Copy, Check, ExternalLink, RefreshCw, Activity, Clock, Edit2, Save, BarChart, Calculator, TrendingUp, DollarSign, AlertTriangle } from "lucide-react";
+import { Settings, CheckCircle2, AlertCircle, ExternalLink, Copy, Shield, MessageSquare, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 // ✅ Get API key from localStorage
@@ -30,39 +29,8 @@ const getFetchHeaders = () => {
 };
 
 interface WhatsAppConfig {
-  phoneNumberId: string;
-  businessAccountId: string;
-  webhookVerifyToken: string;
-  isVerified: boolean;
   dailyLimit: number;
   peakLimit: number;
-}
-
-interface WebhookInfo {
-  webhookUrl: string;
-  webhookPath: string;
-  instructions: string[];
-}
-
-interface WebhookEvent {
-  id: number;
-  eventType: string;
-  rawPayload: any;
-  messageId: string | null;
-  phoneNumber: string | null;
-  status: string | null;
-  processed: boolean;
-  errorMessage: string | null;
-  createdAt: string;
-}
-
-interface Template {
-  id: number;
-  name: string;
-  content: string;
-  variables: string[];
-  category: string;
-  status: string;
 }
 
 export default function ConfiguracionPage() {
@@ -99,6 +67,8 @@ export default function ConfiguracionPage() {
     dailyLimit: 1000,
     peakLimit: 10000
   });
+
+  const [tempDailyLimit, setTempDailyLimit] = useState(1000);
 
   useEffect(() => {
     fetchConfig();
@@ -424,6 +394,48 @@ export default function ConfiguracionPage() {
     }
   };
 
+  const handleSaveDailyLimit = async () => {
+    if (tempDailyLimit > config.peakLimit) {
+      toast.error("No puedes establecer un límite diario superior a la capacidad autorizada por Meta");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch("/api/whatsapp/config", {
+        method: "POST",
+        headers: getFetchHeaders(),
+        body: JSON.stringify({
+          ...formData,
+          dailyLimit: tempDailyLimit
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(data);
+        setSuccess("✅ Límite diario actualizado exitosamente");
+        toast.success("✅ Límite diario actualizado exitosamente", {
+          description: `Nuevo límite diario establecido: ${tempDailyLimit.toLocaleString()} mensajes/día`,
+          duration: 5000
+        });
+        setTempDailyLimit(tempDailyLimit);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Error al actualizar el límite diario");
+        toast.error(data.error || "Error al actualizar el límite diario");
+      }
+    } catch (err) {
+      setError("Error de conexión");
+      toast.error("Error de conexión");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case 'verification':
@@ -486,7 +498,7 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Configuración</h2>
           <p className="text-muted-foreground">
@@ -494,14 +506,15 @@ export default function ConfiguracionPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="credenciales" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="credenciales">Credenciales</TabsTrigger>
+        <Tabs defaultValue="credentials" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="credentials">Credenciales</TabsTrigger>
             <TabsTrigger value="webhook">Webhook</TabsTrigger>
             <TabsTrigger value="webhook-status">Estado del Webhook</TabsTrigger>
+            <TabsTrigger value="limits">Límites de Envío</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="credenciales" className="space-y-4">
+          <TabsContent value="credentials" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1051,6 +1064,130 @@ export default function ConfiguracionPage() {
                 }
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* NEW: Límites Tab */}
+          <TabsContent value="limits" className="space-y-6">
+            {config ? (
+              <Card className="border-purple-500/20 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-600 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Configurar Límite de Envío Diario</CardTitle>
+                      <CardDescription>Establece cuántos mensajes deseas enviar por día según tu capacidad de Meta</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Configuración del límite */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Tu Límite Diario Deseado</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          value={tempDailyLimit}
+                          onChange={(e) => setTempDailyLimit(parseInt(e.target.value) || 0)}
+                          min={1}
+                          max={config.peakLimit}
+                          className="flex-1"
+                        />
+                        <Button 
+                          onClick={handleSaveDailyLimit} 
+                          disabled={savingLimit || tempDailyLimit === config.dailyLimit}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          {savingLimit ? "Guardando..." : "Actualizar"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Límite de seguridad interno para controlar tu volumen de envíos diarios
+                      </p>
+                    </div>
+
+                    {/* Comparación con Meta */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Capacidad Autorizada por Meta</Label>
+                      <div className="p-4 bg-white dark:bg-background rounded-lg border space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Límite Máximo</span>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {config.peakLimit.toLocaleString()} mensajes/24h
+                          </Badge>
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                            <span>Tu límite configurado</span>
+                            <span>{((tempDailyLimit / config.peakLimit) * 100).toFixed(1)}% de capacidad</span>
+                          </div>
+                          <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                tempDailyLimit > config.peakLimit 
+                                  ? 'bg-red-600' 
+                                  : tempDailyLimit > config.peakLimit * 0.8 
+                                  ? 'bg-amber-600' 
+                                  : 'bg-green-600'
+                              }`}
+                              style={{ width: `${Math.min((tempDailyLimit / config.peakLimit) * 100, 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs mt-2">
+                            <span className="font-semibold text-purple-600 dark:text-purple-400">
+                              {tempDailyLimit.toLocaleString()}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {config.peakLimit.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Alertas */}
+                  {tempDailyLimit > config.peakLimit && (
+                    <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
+                      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                      <AlertDescription className="text-xs text-red-900 dark:text-red-300">
+                        <strong>⚠️ Límite excedido:</strong> Tu límite diario deseado ({tempDailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Ajusta el valor antes de guardar.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {tempDailyLimit <= config.peakLimit && tempDailyLimit > config.peakLimit * 0.8 && (
+                    <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
+                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                      <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
+                        <strong>💡 Uso alto:</strong> Estás utilizando {((tempDailyLimit / config.peakLimit) * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {tempDailyLimit <= config.peakLimit * 0.5 && (
+                    <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
+                        <strong>✅ Uso óptimo:</strong> Tu límite configurado ({tempDailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - tempDailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    Configura tus credenciales de WhatsApp primero para ver los límites de envío
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>
