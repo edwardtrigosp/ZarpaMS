@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight, DollarSign, Calculator, MessageSquare, Users } from "lucide-react";
+import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight, DollarSign, Calculator, MessageSquare, Users, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -84,6 +84,11 @@ interface Contact {
   variables?: Record<string, string>;
 }
 
+interface WhatsAppConfig {
+  dailyLimit: number;
+  peakLimit: number;
+}
+
 export default function MessagesPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -92,6 +97,9 @@ export default function MessagesPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [config, setConfig] = useState<WhatsAppConfig | null>(null);
+  const [savingLimit, setSavingLimit] = useState(false);
+  const [tempDailyLimit, setTempDailyLimit] = useState(1000);
 
   // Test message dialog state
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -133,8 +141,68 @@ export default function MessagesPage() {
       toast.error("API Key no configurada");
     } else {
       fetchTemplates();
+      fetchConfig();
     }
   }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("/api/whatsapp/config", {
+        headers: getFetchHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConfig({
+          dailyLimit: data.dailyLimit,
+          peakLimit: data.peakLimit
+        });
+        setTempDailyLimit(data.dailyLimit);
+      }
+    } catch (err) {
+      console.error("Error fetching config:", err);
+    }
+  };
+
+  const handleSaveDailyLimit = async () => {
+    if (!config) return;
+
+    if (tempDailyLimit > config.peakLimit) {
+      toast.error("El límite diario no puede exceder la capacidad de Meta", {
+        description: `Capacidad máxima: ${config.peakLimit.toLocaleString()} mensajes`
+      });
+      return;
+    }
+
+    if (tempDailyLimit < 1) {
+      toast.error("El límite diario debe ser al menos 1");
+      return;
+    }
+
+    setSavingLimit(true);
+    try {
+      const res = await fetch("/api/whatsapp/config", {
+        method: "POST",
+        headers: getFetchHeaders(),
+        body: JSON.stringify({
+          dailyLimit: tempDailyLimit
+        })
+      });
+
+      if (res.ok) {
+        setConfig({ ...config, dailyLimit: tempDailyLimit });
+        toast.success("✅ Límite diario actualizado", {
+          description: `Nuevo límite: ${tempDailyLimit.toLocaleString()} mensajes/día`
+        });
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Error al actualizar límite");
+      }
+    } catch (err) {
+      toast.error("Error de conexión");
+    } finally {
+      setSavingLimit(false);
+    }
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -546,6 +614,119 @@ export default function MessagesPage() {
           </div>
         </div>
 
+        {/* Configuración de Límite Diario */}
+        {config && (
+          <Card className="mb-6 border-purple-500/20 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-600 rounded-lg">
+                  <Settings className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Configurar Límite de Envío Diario</CardTitle>
+                  <CardDescription>Establece cuántos mensajes deseas enviar por día según tu capacidad de Meta</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Configuración del límite */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Tu Límite Diario Deseado</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={tempDailyLimit}
+                      onChange={(e) => setTempDailyLimit(parseInt(e.target.value) || 0)}
+                      min={1}
+                      max={config.peakLimit}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={handleSaveDailyLimit} 
+                      disabled={savingLimit || tempDailyLimit === config.dailyLimit}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      {savingLimit ? "Guardando..." : "Actualizar"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Límite de seguridad interno para controlar tu volumen de envíos diarios
+                  </p>
+                </div>
+
+                {/* Comparación con Meta */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Capacidad Autorizada por Meta</Label>
+                  <div className="p-4 bg-white dark:bg-background rounded-lg border space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Límite Máximo</span>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        {config.peakLimit.toLocaleString()} mensajes/24h
+                      </Badge>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-2">
+                        <span>Tu límite configurado</span>
+                        <span>{((tempDailyLimit / config.peakLimit) * 100).toFixed(1)}% de capacidad</span>
+                      </div>
+                      <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            tempDailyLimit > config.peakLimit 
+                              ? 'bg-red-600' 
+                              : tempDailyLimit > config.peakLimit * 0.8 
+                              ? 'bg-amber-600' 
+                              : 'bg-green-600'
+                          }`}
+                          style={{ width: `${Math.min((tempDailyLimit / config.peakLimit) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs mt-2">
+                        <span className="font-semibold text-purple-600 dark:text-purple-400">
+                          {tempDailyLimit.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {config.peakLimit.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alertas */}
+              {tempDailyLimit > config.peakLimit && (
+                <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
+                  <AlertDescription className="text-xs text-red-900 dark:text-red-300">
+                    <strong>⚠️ Límite excedido:</strong> Tu límite diario deseado ({tempDailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Ajusta el valor antes de guardar.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {tempDailyLimit <= config.peakLimit && tempDailyLimit > config.peakLimit * 0.8 && (
+                <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                  <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
+                    <strong>💡 Uso alto:</strong> Estás utilizando {((tempDailyLimit / config.peakLimit) * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {tempDailyLimit <= config.peakLimit * 0.5 && (
+                <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                  <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
+                    <strong>✅ Uso óptimo:</strong> Tu límite configurado ({tempDailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - tempDailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center gap-4">
@@ -915,6 +1096,6 @@ export default function MessagesPage() {
           </Card>
         </div>
       </main>
-    </div>);
-
+    </div>
+  );
 }
