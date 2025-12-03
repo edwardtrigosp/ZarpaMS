@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight } from "lucide-react"
+import { Upload, Send, FileSpreadsheet, CheckCircle2, AlertCircle, Download, Zap, ChevronRight, DollarSign, Calculator } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Papa from "papaparse"
 import * as XLSX from "xlsx"
@@ -52,6 +52,22 @@ const normalizePhoneNumber = (phone: string): string => {
   return cleaned.startsWith('+') ? cleaned : `+${cleaned}`
 }
 
+// 💰 Tarifas por categoría de plantilla (USD por mensaje)
+const CATEGORY_RATES: Record<string, number> = {
+  'MARKETING': 0.06,
+  'UTILITY': 0.03,
+  'AUTHENTICATION': 0.03,
+  'SERVICE': 0.01
+}
+
+// 💰 Nombres en español para categorías
+const CATEGORY_NAMES: Record<string, string> = {
+  'MARKETING': 'Marketing',
+  'UTILITY': 'Utilidad',
+  'AUTHENTICATION': 'Autenticación',
+  'SERVICE': 'Servicio'
+}
+
 interface Template {
   id: number
   name: string
@@ -82,6 +98,33 @@ export default function MessagesPage() {
   const [testName, setTestName] = useState("")
   const [testVariables, setTestVariables] = useState<Record<string, string>>({})
   const [sendingTest, setSendingTest] = useState(false)
+
+  // 💰 Calcular costo total
+  const calculateCost = () => {
+    if (!selectedTemplate || contacts.length === 0) {
+      return {
+        count: 0,
+        rate: 0,
+        total: 0,
+        category: '',
+        categoryName: ''
+      }
+    }
+
+    const category = selectedTemplate.category.toUpperCase()
+    const rate = CATEGORY_RATES[category] || 0
+    const total = contacts.length * rate
+
+    return {
+      count: contacts.length,
+      rate,
+      total,
+      category,
+      categoryName: CATEGORY_NAMES[category] || category
+    }
+  }
+
+  const costData = calculateCost()
 
   useEffect(() => {
     const apiKey = getApiKey();
@@ -518,6 +561,63 @@ export default function MessagesPage() {
             <span className="font-medium">Enviar Mensajes</span>
           </div>
         </div>
+
+        {/* 💰 Calculadora de Costos */}
+        {selectedTemplate && contacts.length > 0 && (
+          <Card className="mb-6 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-green-600 rounded-lg">
+                  <Calculator className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Cálculo de Costo de Envío</CardTitle>
+                  <CardDescription>Estimación basada en tarifas de Meta por categoría de plantilla</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-1">Total de Mensajes</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{costData.count}</p>
+                </div>
+                
+                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-1">Categoría</p>
+                  <Badge variant="secondary" className="text-sm font-semibold">
+                    {costData.categoryName}
+                  </Badge>
+                </div>
+                
+                <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-1">Tarifa Unitaria</p>
+                  <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                    ${costData.rate.toFixed(3)}
+                  </p>
+                </div>
+                
+                <div className="p-3 bg-gradient-to-br from-green-600 to-emerald-600 text-white rounded-lg border border-green-700">
+                  <p className="text-xs opacity-90 mb-1">Costo Total Estimado</p>
+                  <div className="flex items-baseline gap-1">
+                    <DollarSign className="h-5 w-5" />
+                    <p className="text-2xl font-bold">{costData.total.toFixed(2)}</p>
+                    <span className="text-xs opacity-80">USD</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border text-xs text-muted-foreground">
+                <p className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Fórmula:</strong> {costData.count} mensajes × ${costData.rate.toFixed(3)} ({costData.categoryName}) = ${costData.total.toFixed(2)} USD
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Card */}
         <Card className="shadow-lg">
