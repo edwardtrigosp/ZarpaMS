@@ -498,7 +498,7 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 py-8 !w-[101%] !h-full !max-w-[101%]">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Configuración</h2>
           <p className="text-muted-foreground">
@@ -1068,8 +1068,8 @@ export default function ConfiguracionPage() {
 
           {/* NEW: Límites Tab */}
           <TabsContent value="limits" className="space-y-6">
-            {config ? (
-              <Card className="border-purple-500/20 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
+            {config ?
+            <Card className="border-purple-500/20 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-600 rounded-lg">
@@ -1088,18 +1088,18 @@ export default function ConfiguracionPage() {
                       <Label className="text-sm font-medium">Tu Límite Diario Deseado</Label>
                       <div className="flex gap-2">
                         <Input
-                          type="number"
-                          value={tempDailyLimit}
-                          onChange={(e) => setTempDailyLimit(parseInt(e.target.value) || 0)}
-                          min={1}
-                          max={config.peakLimit}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={handleSaveDailyLimit} 
-                          disabled={saving || tempDailyLimit === config.dailyLimit}
-                          className="bg-purple-600 hover:bg-purple-700"
-                        >
+                        type="number"
+                        value={tempDailyLimit}
+                        onChange={(e) => setTempDailyLimit(parseInt(e.target.value) || 0)}
+                        min={1}
+                        max={config.peakLimit}
+                        className="flex-1" />
+
+                        <Button
+                        onClick={handleSaveDailyLimit}
+                        disabled={saving || tempDailyLimit === config.dailyLimit}
+                        className="bg-purple-600 hover:bg-purple-700">
+
                           {saving ? "Guardando..." : "Actualizar"}
                         </Button>
                       </div>
@@ -1122,19 +1122,19 @@ export default function ConfiguracionPage() {
                         <div>
                           <div className="flex justify-between text-xs text-muted-foreground mb-2">
                             <span>Tu límite configurado</span>
-                            <span>{((tempDailyLimit / config.peakLimit) * 100).toFixed(1)}% de capacidad</span>
+                            <span>{(tempDailyLimit / config.peakLimit * 100).toFixed(1)}% de capacidad</span>
                           </div>
                           <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${
-                                tempDailyLimit > config.peakLimit 
-                                  ? 'bg-red-600' 
-                                  : tempDailyLimit > config.peakLimit * 0.8 
-                                  ? 'bg-amber-600' 
-                                  : 'bg-green-600'
-                              }`}
-                              style={{ width: `${Math.min((tempDailyLimit / config.peakLimit) * 100, 100)}%` }}
-                            />
+                            className={`h-full rounded-full transition-all ${
+                            tempDailyLimit > config.peakLimit ?
+                            'bg-red-600' :
+                            tempDailyLimit > config.peakLimit * 0.8 ?
+                            'bg-amber-600' :
+                            'bg-green-600'}`
+                            }
+                            style={{ width: `${Math.min(tempDailyLimit / config.peakLimit * 100, 100)}%` }} />
+
                           </div>
                           <div className="flex justify-between text-xs mt-2">
                             <span className="font-semibold text-purple-600 dark:text-purple-400">
@@ -1150,36 +1150,36 @@ export default function ConfiguracionPage() {
                   </div>
 
                   {/* Alertas */}
-                  {tempDailyLimit > config.peakLimit && (
-                    <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
+                  {tempDailyLimit > config.peakLimit &&
+                <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
                       <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
                       <AlertDescription className="text-xs text-red-900 dark:text-red-300">
                         <strong>⚠️ Límite excedido:</strong> Tu límite diario deseado ({tempDailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Ajusta el valor antes de guardar.
                       </AlertDescription>
                     </Alert>
-                  )}
+                }
 
-                  {tempDailyLimit <= config.peakLimit && tempDailyLimit > config.peakLimit * 0.8 && (
-                    <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
+                  {tempDailyLimit <= config.peakLimit && tempDailyLimit > config.peakLimit * 0.8 &&
+                <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
                       <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                       <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
-                        <strong>💡 Uso alto:</strong> Estás utilizando {((tempDailyLimit / config.peakLimit) * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
+                        <strong>💡 Uso alto:</strong> Estás utilizando {(tempDailyLimit / config.peakLimit * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
                       </AlertDescription>
                     </Alert>
-                  )}
+                }
 
-                  {tempDailyLimit <= config.peakLimit * 0.5 && (
-                    <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
+                  {tempDailyLimit <= config.peakLimit * 0.5 &&
+                <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
                       <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
                         <strong>✅ Uso óptimo:</strong> Tu límite configurado ({tempDailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - tempDailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
                       </AlertDescription>
                     </Alert>
-                  )}
+                }
                 </CardContent>
-              </Card>
-            ) : (
-              <Card>
+              </Card> :
+
+            <Card>
                 <CardContent className="py-12 text-center">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">
@@ -1187,7 +1187,7 @@ export default function ConfiguracionPage() {
                   </p>
                 </CardContent>
               </Card>
-            )}
+            }
           </TabsContent>
         </Tabs>
       </main>
