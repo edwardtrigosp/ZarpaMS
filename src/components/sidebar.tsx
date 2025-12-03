@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { LayoutDashboard, FileText, Send, History, Settings, ChevronLeft, ChevronRight, MessageSquare, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,11 @@ const menuItems = [
   icon: History,
   label: "Historial",
   href: "/history"
+},
+{
+  icon: DollarSign,
+  label: "Costos por Mensaje",
+  href: "/costos"
 },
 {
   icon: Settings,
