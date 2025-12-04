@@ -51,13 +51,13 @@ export const Sidebar = () => {
         collapsed ? "w-16" : "w-64"
       )}>
 
-      <div className="flex flex-col !w-[250px] !h-full">
+      <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex h-16 items-center border-b px-4">
           {!collapsed &&
           <div className="flex items-center gap-2">
               <MessageSquare className="h-8 w-8 text-sidebar-primary" />
-              <span className="font-bold text-sidebar-foreground !whitespace-pre-line">ZARPA MS</span>
+              <span className="font-bold text-sidebar-foreground whitespace-nowrap">ZARPA MS</span>
             </div>
           }
           {collapsed &&
@@ -66,7 +66,7 @@ export const Sidebar = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2 !w-[227px] !h-[444px]">
+        <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -75,13 +75,11 @@ export const Sidebar = () => {
               <Link key={item.href} href={item.href}>
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
-                  className="!w-full !h-9"
-
-
-
-
+                  className={cn(
+                    "w-full justify-start gap-3",
+                    collapsed && "justify-center px-2"
+                  )}
                   title={collapsed ? item.label : undefined}>
-
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </Button>
