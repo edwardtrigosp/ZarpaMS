@@ -1037,125 +1037,50 @@ export default function ConfiguracionPage() {
                       <TrendingUp className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Límites de Envío Configurados</CardTitle>
-                      <CardDescription>Visualiza tu capacidad de envío y los límites establecidos por Meta</CardDescription>
+                      <CardTitle className="text-lg">Capacidad de Envío</CardTitle>
+                      <CardDescription>Límite máximo autorizado por Meta WhatsApp Business API</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* Límite Diario Actual */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Tu Límite Diario Configurado</Label>
-                      <div className="p-6 bg-white dark:bg-background rounded-lg border space-y-3">
-                        <div className="text-center">
-                          <p className="text-4xl font-bold text-purple-600 dark:text-purple-400">
-                            {config.dailyLimit.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1">mensajes/día</p>
-                        </div>
+                  {/* Capacidad de Meta - Centro */}
+                  <div className="max-w-lg mx-auto space-y-3">
+                    <div className="p-8 bg-white dark:bg-background rounded-lg border space-y-4">
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Capacidad Autorizada por Meta</p>
+                        <p className="text-5xl font-bold text-purple-600 dark:text-purple-400">
+                          {config.peakLimit.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">mensajes cada 24 horas</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Este es tu límite de seguridad interno para controlar el volumen de envíos diarios
-                      </p>
-                    </div>
-
-                    {/* Capacidad de Meta */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Capacidad Autorizada por Meta</Label>
-                      <div className="p-6 bg-white dark:bg-background rounded-lg border space-y-3">
-                        <div className="flex justify-between items-center mb-4">
-                          <span className="text-sm font-medium">Límite Máximo</span>
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {config.peakLimit.toLocaleString()} mensajes/24h
-                          </Badge>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                            <span>Uso actual</span>
-                            <span>{(config.dailyLimit / config.peakLimit * 100).toFixed(1)}% de capacidad</span>
-                          </div>
-                          <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div
-                            className={`h-full rounded-full transition-all ${
-                            config.dailyLimit > config.peakLimit ?
-                            'bg-red-600' :
-                            config.dailyLimit > config.peakLimit * 0.8 ?
-                            'bg-amber-600' :
-                            'bg-green-600'}`
-                            }
-                            style={{ width: `${Math.min(config.dailyLimit / config.peakLimit * 100, 100)}%` }} />
-                          </div>
-                          <div className="flex justify-between text-xs mt-2">
-                            <span className="font-semibold text-purple-600 dark:text-purple-400">
-                              {config.dailyLimit.toLocaleString()}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {config.peakLimit.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
+                      
+                      <div className="pt-4 border-t">
+                        <Badge variant="secondary" className="w-full justify-center py-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          Límite Máximo de Envío
+                        </Badge>
                       </div>
                     </div>
                   </div>
 
-                  {/* Información de estado */}
-                  {config.dailyLimit > config.peakLimit &&
-                <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
-                      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
-                      <AlertDescription className="text-xs text-red-900 dark:text-red-300">
-                        <strong>⚠️ Límite excedido:</strong> Tu límite diario configurado ({config.dailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Contacta soporte para ajustarlo.
-                      </AlertDescription>
-                    </Alert>
-                }
-
-                  {config.dailyLimit <= config.peakLimit && config.dailyLimit > config.peakLimit * 0.8 &&
-                <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                      <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
-                        <strong>💡 Uso alto:</strong> Estás utilizando {(config.dailyLimit / config.peakLimit * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
-                      </AlertDescription>
-                    </Alert>
-                }
-
-                  {config.dailyLimit <= config.peakLimit * 0.5 &&
-                <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
-                        <strong>✅ Uso óptimo:</strong> Tu límite configurado ({config.dailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - config.dailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
-                      </AlertDescription>
-                    </Alert>
-                }
-
                   {/* Información adicional */}
                   <div className="pt-4 border-t">
-                    <h4 className="text-sm font-medium mb-3">Información de Límites</h4>
+                    <h4 className="text-sm font-medium mb-3">Información sobre el Límite</h4>
                     <div className="grid gap-2 text-sm">
-                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
-                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium">Límite Diario</p>
-                          <p className="text-xs text-muted-foreground">
-                            Controla cuántos mensajes puedes enviar en un periodo de 24 horas
-                          </p>
-                        </div>
-                      </div>
                       <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
                         <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="font-medium">Límite Pico (Meta)</p>
+                          <p className="font-medium">Capacidad Autorizada</p>
                           <p className="text-xs text-muted-foreground">
-                            Capacidad máxima autorizada por Meta WhatsApp Business API
+                            Este es el límite máximo de mensajes que puedes enviar en un periodo de 24 horas, establecido por Meta WhatsApp Business API
                           </p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
                         <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="font-medium">Actualización de Límites</p>
+                          <p className="font-medium">Actualización de Capacidad</p>
                           <p className="text-xs text-muted-foreground">
-                            Para modificar los límites, contacta al administrador del sistema o actualiza tu tier en Meta
+                            La capacidad puede aumentar según tu tier y calificación de calidad en Meta. Para más información, consulta tu panel de Meta Business
                           </p>
                         </div>
                       </div>
