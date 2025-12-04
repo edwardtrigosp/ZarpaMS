@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, RefreshCw } from "lucide-react";
+import { MessageSquare, CheckCircle, XCircle, TrendingUp, Users, Send, FileText, RefreshCw, Activity } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -314,7 +314,7 @@ export default function HomePage() {
 
         <div className="mb-8">
           <h3 className="text-xl font-semibold mb-4">Acciones Rápidas</h3>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <Link href="/templates">
                 <CardHeader>
@@ -346,6 +346,18 @@ export default function HomePage() {
                   <CardTitle>Ver Historial</CardTitle>
                   <CardDescription>
                     Revisa el historial de mensajes enviados y su estado
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Link href="/pruebas-internas">
+                <CardHeader>
+                  <Activity className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Pruebas del Sistema</CardTitle>
+                  <CardDescription>
+                    Verifica la capacidad de envío y estado del sistema
                   </CardDescription>
                 </CardHeader>
               </Link>
