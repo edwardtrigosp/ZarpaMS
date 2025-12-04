@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, FileText } from "lucide-react"
+import { Plus, Edit, Trash2, FileText, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 // ✅ Get API key from localStorage
@@ -43,6 +43,42 @@ interface Template {
   updatedAt: string
 }
 
+// Plantillas predefinidas
+const PREDEFINED_TEMPLATES = [
+  {
+    id: "evento_politico",
+    name: "Evento Político - Inscripción de Candidato",
+    category: "MARKETING",
+    content: `¡Tenemos una cita importante por {{ciudad}}! 🗓️🚀
+
+Este {{fecha}}, nuestro proyecto arranca oficialmente. {{candidato}} se inscribe como candidato a {{cargo}} ¡y queremos que estén ahí con nosotros!
+
+Tu apoyo nos da la fuerza para empezar con toda. 
+
+Lugar: {{lugar}}
+Hora: {{hora}}
+{{instruccion_adicional}}`,
+    variables: ["ciudad", "fecha", "candidato", "cargo", "lugar", "hora", "instruccion_adicional"],
+    description: "Plantilla para convocar a eventos de inscripción de candidatos políticos"
+  },
+  {
+    id: "evento_politico_simple",
+    name: "Evento Político - Convocatoria General",
+    category: "MARKETING",
+    content: `🗓️ ¡Te esperamos en {{ciudad}}!
+
+{{mensaje_principal}}
+
+📍 Lugar: {{lugar}}
+🕐 Hora: {{hora}}
+📅 Fecha: {{fecha}}
+
+¡Tu presencia es muy importante para nosotros!`,
+    variables: ["ciudad", "mensaje_principal", "lugar", "hora", "fecha"],
+    description: "Plantilla simple para eventos políticos"
+  }
+]
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,6 +86,7 @@ export default function TemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [showPredefined, setShowPredefined] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -78,7 +115,6 @@ export default function TemplatesPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        // Parse variables if they come as JSON strings
         const parsedData = data.map((template: Template) => ({
           ...template,
           variables: typeof template.variables === 'string' 
@@ -98,6 +134,24 @@ export default function TemplatesPage() {
       toast.error("Error al cargar plantillas")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUsePredefinedTemplate = (predefinedId: string) => {
+    const predefined = PREDEFINED_TEMPLATES.find(t => t.id === predefinedId)
+    if (predefined) {
+      setFormData({
+        name: predefined.name,
+        content: predefined.content,
+        variables: predefined.variables.join(", "),
+        language: "es",
+        category: predefined.category,
+        status: "DRAFT",
+      })
+      setShowPredefined(false)
+      toast.success("Plantilla cargada", {
+        description: "Puedes personalizarla antes de guardar"
+      })
     }
   }
 
@@ -199,6 +253,7 @@ export default function TemplatesPage() {
       status: "DRAFT",
     })
     setEditingTemplate(null)
+    setShowPredefined(false)
   }
 
   const extractVariables = (content: string) => {
@@ -272,6 +327,63 @@ export default function TemplatesPage() {
                   </Alert>
                 )}
 
+                {/* Plantillas Predefinidas Section */}
+                {!editingTemplate && (
+                  <div className="space-y-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setShowPredefined(!showPredefined)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      {showPredefined ? "Ocultar" : "Usar"} Plantillas Predefinidas
+                    </Button>
+
+                    {showPredefined && (
+                      <div className="grid gap-3">
+                        {PREDEFINED_TEMPLATES.map((predefined) => (
+                          <Card
+                            key={predefined.id}
+                            className="cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => handleUsePredefinedTemplate(predefined.id)}
+                          >
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <CardTitle className="text-sm font-medium">
+                                    {predefined.name}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs mt-1">
+                                    {predefined.description}
+                                  </CardDescription>
+                                </div>
+                                <Badge className={getCategoryColor(predefined.category)} variant="secondary">
+                                  {predefined.category}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="bg-muted p-3 rounded-md">
+                                <p className="text-xs whitespace-pre-wrap line-clamp-4">
+                                  {predefined.content}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {predefined.variables.map((v) => (
+                                  <Badge key={v} variant="outline" className="text-xs">
+                                    {v}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre de la Plantilla</Label>
                   <Input
@@ -287,7 +399,7 @@ export default function TemplatesPage() {
                   <Textarea
                     id="content"
                     placeholder="Usa {{variable}} para variables dinámicas"
-                    rows={6}
+                    rows={8}
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                   />
@@ -332,6 +444,13 @@ export default function TemplatesPage() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Info sobre aprobación de Meta */}
+                <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200">
+                  <AlertDescription className="text-xs">
+                    <strong>📝 Importante:</strong> Las plantillas deben ser aprobadas por Meta antes de poder usarse para envíos masivos. Cambia el estado a "Pendiente" cuando esté lista para enviar a aprobación.
+                  </AlertDescription>
+                </Alert>
 
                 <div className="flex gap-4">
                   <Button onClick={handleSubmit}>
