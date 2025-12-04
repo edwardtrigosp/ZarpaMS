@@ -417,12 +417,15 @@ export default function ConfiguracionPage() {
       if (res.ok) {
         const data = await res.json();
         setConfig(data);
+        setFormData({
+          ...formData,
+          dailyLimit: tempDailyLimit
+        });
         setSuccess("✅ Límite diario actualizado exitosamente");
         toast.success("✅ Límite diario actualizado exitosamente", {
           description: `Nuevo límite diario establecido: ${tempDailyLimit.toLocaleString()} mensajes/día`,
           duration: 5000
         });
-        setTempDailyLimit(tempDailyLimit);
       } else {
         const data = await res.json();
         setError(data.error || "Error al actualizar el límite diario");
@@ -1097,7 +1100,7 @@ export default function ConfiguracionPage() {
 
                         <Button
                         onClick={handleSaveDailyLimit}
-                        disabled={saving || tempDailyLimit === config.dailyLimit}
+                        disabled={saving || tempDailyLimit === config.dailyLimit || tempDailyLimit > config.peakLimit || tempDailyLimit < 1}
                         className="bg-purple-600 hover:bg-purple-700">
 
                           {saving ? "Guardando..." : "Actualizar"}
