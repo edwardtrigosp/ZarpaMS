@@ -73,8 +73,6 @@ export default function ConfiguracionPage() {
     peakLimit: 10000
   });
 
-  const [tempDailyLimit, setTempDailyLimit] = useState(1000);
-
   useEffect(() => {
     fetchConfig();
     fetchWebhookInfo();
@@ -100,7 +98,6 @@ export default function ConfiguracionPage() {
       if (res.ok) {
         const data = await res.json();
         setConfig(data);
-        setTempDailyLimit(data.dailyLimit); // ✅ Sincronizar tempDailyLimit con el valor actual
         setFormData({
           phoneNumberId: data.phoneNumberId,
           accessToken: data.accessToken,
@@ -397,60 +394,6 @@ export default function ConfiguracionPage() {
       }
     } catch (err) {
       console.error("Selection error:", err);
-    }
-  };
-
-  const handleSaveDailyLimit = async () => {
-    if (!config) {
-      toast.error("No hay configuración cargada");
-      return;
-    }
-
-    if (tempDailyLimit > config.peakLimit) {
-      toast.error("No puedes establecer un límite diario superior a la capacidad autorizada por Meta");
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const res = await fetch("/api/whatsapp/config", {
-        method: "POST",
-        headers: getFetchHeaders(),
-        body: JSON.stringify({
-          phoneNumberId: config.phoneNumberId,
-          accessToken: config.accessToken,
-          businessAccountId: config.businessAccountId,
-          webhookVerifyToken: config.webhookVerifyToken,
-          dailyLimit: tempDailyLimit,
-          peakLimit: config.peakLimit
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data);
-        setFormData({
-          ...formData,
-          dailyLimit: tempDailyLimit
-        });
-        setSuccess("✅ Límite diario actualizado exitosamente");
-        toast.success("✅ Límite diario actualizado exitosamente", {
-          description: `Nuevo límite diario establecido: ${tempDailyLimit.toLocaleString()} mensajes/día`,
-          duration: 5000
-        });
-      } else {
-        const data = await res.json();
-        setError(data.error || "Error al actualizar el límite diario");
-        toast.error(data.error || "Error al actualizar el límite diario");
-      }
-    } catch (err) {
-      setError("Error de conexión");
-      toast.error("Error de conexión");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -1094,43 +1037,34 @@ export default function ConfiguracionPage() {
                       <TrendingUp className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Configurar Límite de Envío Diario</CardTitle>
-                      <CardDescription>Establece cuántos mensajes deseas enviar por día según tu capacidad de Meta</CardDescription>
+                      <CardTitle className="text-lg">Límites de Envío Configurados</CardTitle>
+                      <CardDescription>Visualiza tu capacidad de envío y los límites establecidos por Meta</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-6">
-                    {/* Configuración del límite */}
+                    {/* Límite Diario Actual */}
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">Tu Límite Diario Deseado</Label>
-                      <div className="flex gap-2">
-                        <Input
-                        type="number"
-                        value={tempDailyLimit}
-                        onChange={(e) => setTempDailyLimit(parseInt(e.target.value) || 0)}
-                        min={1}
-                        max={config.peakLimit}
-                        className="flex-1" />
-
-                        <Button
-                        onClick={handleSaveDailyLimit}
-                        disabled={saving || tempDailyLimit === config.dailyLimit || tempDailyLimit > config.peakLimit || tempDailyLimit < 1}
-                        className="bg-purple-600 hover:bg-purple-700">
-
-                          {saving ? "Guardando..." : "Actualizar"}
-                        </Button>
+                      <Label className="text-sm font-medium">Tu Límite Diario Configurado</Label>
+                      <div className="p-6 bg-white dark:bg-background rounded-lg border space-y-3">
+                        <div className="text-center">
+                          <p className="text-4xl font-bold text-purple-600 dark:text-purple-400">
+                            {config.dailyLimit.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">mensajes/día</p>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Límite de seguridad interno para controlar tu volumen de envíos diarios
+                        Este es tu límite de seguridad interno para controlar el volumen de envíos diarios
                       </p>
                     </div>
 
-                    {/* Comparación con Meta */}
+                    {/* Capacidad de Meta */}
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Capacidad Autorizada por Meta</Label>
-                      <div className="p-4 bg-white dark:bg-background rounded-lg border space-y-3">
-                        <div className="flex justify-between items-center">
+                      <div className="p-6 bg-white dark:bg-background rounded-lg border space-y-3">
+                        <div className="flex justify-between items-center mb-4">
                           <span className="text-sm font-medium">Límite Máximo</span>
                           <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                             {config.peakLimit.toLocaleString()} mensajes/24h
@@ -1139,24 +1073,23 @@ export default function ConfiguracionPage() {
                         
                         <div>
                           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                            <span>Tu límite configurado</span>
-                            <span>{(tempDailyLimit / config.peakLimit * 100).toFixed(1)}% de capacidad</span>
+                            <span>Uso actual</span>
+                            <span>{(config.dailyLimit / config.peakLimit * 100).toFixed(1)}% de capacidad</span>
                           </div>
                           <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
                             className={`h-full rounded-full transition-all ${
-                            tempDailyLimit > config.peakLimit ?
+                            config.dailyLimit > config.peakLimit ?
                             'bg-red-600' :
-                            tempDailyLimit > config.peakLimit * 0.8 ?
+                            config.dailyLimit > config.peakLimit * 0.8 ?
                             'bg-amber-600' :
                             'bg-green-600'}`
                             }
-                            style={{ width: `${Math.min(tempDailyLimit / config.peakLimit * 100, 100)}%` }} />
-
+                            style={{ width: `${Math.min(config.dailyLimit / config.peakLimit * 100, 100)}%` }} />
                           </div>
                           <div className="flex justify-between text-xs mt-2">
                             <span className="font-semibold text-purple-600 dark:text-purple-400">
-                              {tempDailyLimit.toLocaleString()}
+                              {config.dailyLimit.toLocaleString()}
                             </span>
                             <span className="text-muted-foreground">
                               {config.peakLimit.toLocaleString()}
@@ -1167,33 +1100,67 @@ export default function ConfiguracionPage() {
                     </div>
                   </div>
 
-                  {/* Alertas */}
-                  {tempDailyLimit > config.peakLimit &&
+                  {/* Información de estado */}
+                  {config.dailyLimit > config.peakLimit &&
                 <Alert className="border-red-500/20 bg-red-50 dark:bg-red-950/20">
                       <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-500" />
                       <AlertDescription className="text-xs text-red-900 dark:text-red-300">
-                        <strong>⚠️ Límite excedido:</strong> Tu límite diario deseado ({tempDailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Ajusta el valor antes de guardar.
+                        <strong>⚠️ Límite excedido:</strong> Tu límite diario configurado ({config.dailyLimit.toLocaleString()}) supera la capacidad autorizada por Meta ({config.peakLimit.toLocaleString()}). Contacta soporte para ajustarlo.
                       </AlertDescription>
                     </Alert>
                 }
 
-                  {tempDailyLimit <= config.peakLimit && tempDailyLimit > config.peakLimit * 0.8 &&
+                  {config.dailyLimit <= config.peakLimit && config.dailyLimit > config.peakLimit * 0.8 &&
                 <Alert className="border-amber-500/20 bg-amber-50 dark:bg-amber-950/20">
                       <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                       <AlertDescription className="text-xs text-amber-900 dark:text-amber-300">
-                        <strong>💡 Uso alto:</strong> Estás utilizando {(tempDailyLimit / config.peakLimit * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
+                        <strong>💡 Uso alto:</strong> Estás utilizando {(config.dailyLimit / config.peakLimit * 100).toFixed(0)}% de tu capacidad de Meta. Considera verificar tu tier para aumentar límites si es necesario.
                       </AlertDescription>
                     </Alert>
                 }
 
-                  {tempDailyLimit <= config.peakLimit * 0.5 &&
+                  {config.dailyLimit <= config.peakLimit * 0.5 &&
                 <Alert className="border-blue-500/20 bg-blue-50 dark:bg-blue-950/20">
                       <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <AlertDescription className="text-xs text-blue-900 dark:text-blue-300">
-                        <strong>✅ Uso óptimo:</strong> Tu límite configurado ({tempDailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - tempDailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
+                        <strong>✅ Uso óptimo:</strong> Tu límite configurado ({config.dailyLimit.toLocaleString()}) está dentro del rango saludable. Tienes {(config.peakLimit - config.dailyLimit).toLocaleString()} mensajes adicionales disponibles si los necesitas.
                       </AlertDescription>
                     </Alert>
                 }
+
+                  {/* Información adicional */}
+                  <div className="pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-3">Información de Límites</h4>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Límite Diario</p>
+                          <p className="text-xs text-muted-foreground">
+                            Controla cuántos mensajes puedes enviar en un periodo de 24 horas
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
+                        <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Límite Pico (Meta)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Capacidad máxima autorizada por Meta WhatsApp Business API
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
+                        <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium">Actualización de Límites</p>
+                          <p className="text-xs text-muted-foreground">
+                            Para modificar los límites, contacta al administrador del sistema o actualiza tu tier en Meta
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card> :
 
