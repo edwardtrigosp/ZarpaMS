@@ -29,6 +29,11 @@ const getFetchHeaders = () => {
 };
 
 interface WhatsAppConfig {
+  phoneNumberId: string;
+  accessToken: string;
+  businessAccountId: string;
+  webhookVerifyToken: string;
+  isVerified: boolean;
   dailyLimit: number;
   peakLimit: number;
 }
@@ -95,6 +100,7 @@ export default function ConfiguracionPage() {
       if (res.ok) {
         const data = await res.json();
         setConfig(data);
+        setTempDailyLimit(data.dailyLimit); // ✅ Sincronizar tempDailyLimit con el valor actual
         setFormData({
           phoneNumberId: data.phoneNumberId,
           accessToken: data.accessToken,
@@ -395,6 +401,11 @@ export default function ConfiguracionPage() {
   };
 
   const handleSaveDailyLimit = async () => {
+    if (!config) {
+      toast.error("No hay configuración cargada");
+      return;
+    }
+
     if (tempDailyLimit > config.peakLimit) {
       toast.error("No puedes establecer un límite diario superior a la capacidad autorizada por Meta");
       return;
@@ -409,8 +420,12 @@ export default function ConfiguracionPage() {
         method: "POST",
         headers: getFetchHeaders(),
         body: JSON.stringify({
-          ...formData,
-          dailyLimit: tempDailyLimit
+          phoneNumberId: config.phoneNumberId,
+          accessToken: config.accessToken,
+          businessAccountId: config.businessAccountId,
+          webhookVerifyToken: config.webhookVerifyToken,
+          dailyLimit: tempDailyLimit,
+          peakLimit: config.peakLimit
         })
       });
 
