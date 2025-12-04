@@ -68,9 +68,7 @@ export default function ConfiguracionPage() {
     phoneNumberId: "",
     accessToken: "",
     businessAccountId: "",
-    webhookVerifyToken: "",
-    dailyLimit: 1000,
-    peakLimit: 10000
+    webhookVerifyToken: ""
   });
 
   useEffect(() => {
@@ -479,8 +477,8 @@ export default function ConfiguracionPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Cargando configuración...</p>
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   return (
@@ -515,42 +513,12 @@ export default function ConfiguracionPage() {
                   </div>
                   <div className="flex gap-2">
                     {!isEditingCredentials && config &&
-                    <>
-                        <Button
-                        variant="outline"
-                        onClick={async () => {
-                          const loadingToast = toast.loading("Sincronizando plantillas desde Meta...");
-                          try {
-                            const res = await fetch("/api/whatsapp/sync-templates", {
-                              headers: getFetchHeaders()
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              toast.success(`✅ ${data.synced} plantilla(s) sincronizada(s)`, {
-                                description: data.templates?.map((t: any) => t.name).join(", ") || "Plantillas actualizadas"
-                              });
-                            } else {
-                              const data = await res.json();
-                              toast.error(data.error || "Error al sincronizar");
-                            }
-                          } catch (err) {
-                            toast.error("Error de conexión");
-                          } finally {
-                            toast.dismiss(loadingToast);
-                          }
-                        }}>
-
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Sincronizar Plantillas
-                        </Button>
-                        <Button
+                      <Button
                         variant="outline"
                         onClick={() => setIsEditingCredentials(true)}>
-
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Editar Credenciales
-                        </Button>
-                      </>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Editar Credenciales
+                      </Button>
                     }
                   </div>
                 </div>
@@ -598,14 +566,9 @@ export default function ConfiguracionPage() {
                         <div className="mt-1">
                           {config.isVerified ?
                         <Badge className="bg-green-600">✓ Verificado</Badge> :
-
                         <Badge variant="destructive">No Verificado</Badge>
                         }
                         </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Límites</Label>
-                        <p className="text-sm mt-1">Diario: {config.dailyLimit} | Pico: {config.peakLimit}</p>
                       </div>
                     </div>
                   </div> :
@@ -621,7 +584,6 @@ export default function ConfiguracionPage() {
                         onChange={(e) =>
                         setFormData({ ...formData, phoneNumberId: e.target.value })
                         } />
-
                       </div>
 
                       <div className="space-y-2">
@@ -633,7 +595,6 @@ export default function ConfiguracionPage() {
                         onChange={(e) =>
                         setFormData({ ...formData, businessAccountId: e.target.value })
                         } />
-
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
@@ -646,7 +607,6 @@ export default function ConfiguracionPage() {
                         onChange={(e) =>
                         setFormData({ ...formData, accessToken: e.target.value })
                         } />
-
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
@@ -658,31 +618,6 @@ export default function ConfiguracionPage() {
                         onChange={(e) =>
                         setFormData({ ...formData, webhookVerifyToken: e.target.value })
                         } />
-
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="dailyLimit">Límite Diario</Label>
-                        <Input
-                        id="dailyLimit"
-                        type="number"
-                        value={formData.dailyLimit}
-                        onChange={(e) =>
-                        setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })
-                        } />
-
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="peakLimit">Límite Pico</Label>
-                        <Input
-                        id="peakLimit"
-                        type="number"
-                        value={formData.peakLimit}
-                        onChange={(e) =>
-                        setFormData({ ...formData, peakLimit: parseInt(e.target.value) })
-                        } />
-
                       </div>
                     </div>
 
@@ -702,7 +637,6 @@ export default function ConfiguracionPage() {
                         setError("");
                         setSuccess("");
                       }}>
-
                           Cancelar
                         </Button>
                     }
@@ -1122,7 +1056,6 @@ export default function ConfiguracionPage() {
                   </div>
                 </CardContent>
               </Card> :
-
             <Card>
                 <CardContent className="py-12 text-center">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -1225,6 +1158,6 @@ export default function ConfiguracionPage() {
           </div>
         </div>
       }
-    </div>);
-
+    </div>
+  );
 }
