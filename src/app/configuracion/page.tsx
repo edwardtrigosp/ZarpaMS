@@ -174,6 +174,11 @@ export default function ConfiguracionPage() {
   };
 
   const handleUpdateTier = async () => {
+    if (!config) return;
+    
+    // Guardar el límite actual antes de actualizar
+    const previousLimit = config.peakLimit;
+    
     setCheckingTier(true);
     try {
       const res = await fetch("/api/whatsapp/check-tier", {
@@ -183,14 +188,35 @@ export default function ConfiguracionPage() {
 
       if (res.ok) {
         const data = await res.json();
-        toast.success("✅ Tier actualizado exitosamente", {
-          description: `Nuevo límite: ${data.newLimit.toLocaleString()} mensajes/24h`
-        });
+        const newLimit = data.newLimit;
+        
+        // Comparar límites y mostrar mensaje apropiado
+        if (newLimit > previousLimit) {
+          // Capacidad aumentó
+          const increase = newLimit - previousLimit;
+          toast.success("🎉 ¡Capacidad aumentada!", {
+            description: `Tu límite pasó de ${previousLimit.toLocaleString()} a ${newLimit.toLocaleString()} mensajes/24h (+${increase.toLocaleString()})`,
+            duration: 6000
+          });
+        } else if (newLimit < previousLimit) {
+          // Capacidad disminuyó
+          const decrease = previousLimit - newLimit;
+          toast.warning("⚠️ Capacidad reducida", {
+            description: `Tu límite pasó de ${previousLimit.toLocaleString()} a ${newLimit.toLocaleString()} mensajes/24h (-${decrease.toLocaleString()})`,
+            duration: 6000
+          });
+        } else {
+          // Sin cambios
+          toast.info("ℹ️ Sin cambios en la capacidad", {
+            description: `Tu límite se mantiene en ${newLimit.toLocaleString()} mensajes/24h`,
+            duration: 4000
+          });
+        }
 
         // Actualizar configuración local
         setFormData({
           ...formData,
-          peakLimit: data.newLimit
+          peakLimit: newLimit
         });
 
         // Refrescar configuración
@@ -199,7 +225,7 @@ export default function ConfiguracionPage() {
         // Actualizar tier info
         setTierInfo({
           tier: data.tier,
-          peakLimit: data.newLimit,
+          peakLimit: newLimit,
           qualityRating: data.qualityRating,
           needsUpdate: false
         });
@@ -1036,10 +1062,18 @@ export default function ConfiguracionPage() {
                     <div className="p-2 bg-purple-600 rounded-lg">
                       <TrendingUp className="h-5 w-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">Capacidad de Envío</CardTitle>
                       <CardDescription>Límite máximo autorizado por Meta WhatsApp Business API</CardDescription>
                     </div>
+                    <Button
+                      onClick={handleUpdateTier}
+                      disabled={checkingTier}
+                      variant="outline"
+                      className="gap-2">
+                      <RefreshCw className={`h-4 w-4 ${checkingTier ? 'animate-spin' : ''}`} />
+                      {checkingTier ? "Verificando..." : "Actualizar desde Meta"}
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1080,7 +1114,7 @@ export default function ConfiguracionPage() {
                         <div>
                           <p className="font-medium">Actualización de Capacidad</p>
                           <p className="text-xs text-muted-foreground">
-                            La capacidad puede aumentar según tu tier y calificación de calidad en Meta. Para más información, consulta tu panel de Meta Business
+                            La capacidad puede aumentar según tu tier y calificación de calidad en Meta. Usa el botón "Actualizar desde Meta" para verificar cambios
                           </p>
                         </div>
                       </div>
